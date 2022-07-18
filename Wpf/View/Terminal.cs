@@ -28,7 +28,22 @@ namespace CSharpSandbox.Wpf.View
         private readonly CancellationTokenSource _keyboardInterrupt = new();
         private readonly TaskFactory _taskFactory = new();
 
-        private int LastLineStart => Text.LastIndexOf(Environment.NewLine) + Environment.NewLine.Length;
+        private int LastLineStart
+        {
+            get
+            {
+                var lineEnd = Text.LastIndexOf(Environment.NewLine);
+
+                if (lineEnd == -1)
+                {
+                    return 0;
+                }
+                else
+                {
+                    return lineEnd + Environment.NewLine.Length;
+                }
+            }
+        }
         private string LastLine => Text[LastLineStart..];
         private int CommandStart => LastLineStart + FullPrompt.Length;
         private string Command => Text[CommandStart..];
@@ -59,7 +74,7 @@ namespace CSharpSandbox.Wpf.View
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     RedirectStandardInput = true,
-                    CreateNoWindow = false,
+                    CreateNoWindow = true,
                     WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 }
             };
@@ -76,6 +91,30 @@ namespace CSharpSandbox.Wpf.View
             IsStarted = true;
         }
 
+        private void Read(StreamReader reader)
+        {
+            if (reader == null)
+            {
+                throw new ArgumentNullException(nameof(reader));
+            }
+
+            string buffer = string.Empty;
+
+            while (!(_shellProcess!.HasExited))
+            {
+                do
+                {
+                    var next = (char)reader.Read();
+
+                    buffer += next;
+                }
+                while (!buffer.EndsWith(Environment.NewLine));
+
+                Dispatcher.Invoke(() => Print(buffer.ToString(), false));
+                buffer = string.Empty;
+            }
+        }
+
         private void ReadErrors()
         {
             if (_shellError == null)
@@ -83,33 +122,7 @@ namespace CSharpSandbox.Wpf.View
                 throw new InvalidOperationException("Output stream not initialized.");
             }
 
-            string errorBuffer = string.Empty;
-
-            void flushError()
-            {
-                Dispatcher.Invoke(() => Print(errorBuffer.ToString(), false));
-                errorBuffer = string.Empty;
-            }
-
-            while (!(_shellProcess!.HasExited))
-            {
-                while (true)
-                {
-                    int next = _shellError.Read();
-
-                    if (next == -1)
-                    {
-                        break;
-                    }
-
-                    errorBuffer += (char)next;
-
-                    if (errorBuffer.EndsWith(Environment.NewLine))
-                    {
-                        flushError();
-                    }
-                }
-            }
+            Read(_shellError);
         }
 
         private void ReadWriteShell()
@@ -121,52 +134,34 @@ namespace CSharpSandbox.Wpf.View
 
             string outputBuffer = string.Empty;
 
-            void flushOutput()
-            {
-                Dispatcher.Invoke(() => Print(outputBuffer.ToString(), false));
-                outputBuffer = string.Empty;
-            }
-
-            void clearOutput()
-            {
-                outputBuffer = string.Empty;
-            }
-
             while (!(_shellProcess!.HasExited))
             {
-                while (true)
+                while (!outputBuffer.EndsWith(Environment.NewLine))
                 {
-                    int next = _shellOutput.Read();
+                    var next = (char)_shellOutput.Read();
 
-                    if (next == -1)
+                    outputBuffer += next;
+
+                    if (_shellPromptPattern.Match(outputBuffer)?.Success ?? false)
                     {
                         break;
                     }
-
-                    outputBuffer += (char)next;
-
-                    if (outputBuffer.EndsWith(Environment.NewLine))
-                    {
-                        if (outputBuffer == (_enteredCommand + Environment.NewLine))
-                        {
-                            clearOutput();
-                        }
-                        else
-                        {
-                            flushOutput();
-                        }
-                    }
-
-                    var match = _shellPromptPattern.Match(outputBuffer);
-                    if (match?.Success ?? false)
-                    {
-                        CurrentDirectory = match.Groups[1].Value;
-                        outputBuffer = FullPrompt;
-                        flushOutput();
-                        _enteredCommand = null;
-                        _isExecuting = false;
-                    }
                 }
+
+                var match = _shellPromptPattern.Match(outputBuffer);
+                if (match?.Success ?? false)
+                {
+                    CurrentDirectory = match.Groups[1].Value;
+                    Dispatcher.Invoke(() => Print(FullPrompt, false));
+                    outputBuffer = string.Empty;
+                    _enteredCommand = null;
+                    _isExecuting = false;
+                }
+                else if (outputBuffer != (_enteredCommand + Environment.NewLine))
+                {
+                    Dispatcher.Invoke(() => Print(outputBuffer, false));
+                }
+                outputBuffer = string.Empty;
             }
         }
 
