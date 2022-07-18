@@ -1,23 +1,53 @@
-﻿using CSharpSandbox.Common;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using NLog.Extensions.Logging;
 using System;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
+using CSharpSandbox.Wpf.View;
 
 namespace CSharpSandbox.Wpf;
 
 public class Program
 {
-    [STAThread]
+    static IHostBuilder CreateHostBuilder(string[] args)
+    {
+        var config = new ConfigurationBuilder()
+                .SetBasePath(System.IO.Directory.GetCurrentDirectory()) //From NuGet Package Microsoft.Extensions.Configuration.Json
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
+
+        return Host.CreateDefaultBuilder(args)
+            .ConfigureServices((_, services) =>
+            {
+                services.AddSingleton<App>()
+                    .AddTransient<IDaq, Daq>()
+                    .AddLogging(loggingBuilder =>
+                    {
+                        loggingBuilder.SetMinimumLevel(LogLevel.Trace);
+                        loggingBuilder.AddNLog(config);
+                    });
+            });
+    }
+
     public static int Main(string[] args)
     {
-        //_ = new Terminal();
+        Utilities.StaThreadWrapper(async () =>
+        {
+            try
+            {
+                using var host = CreateHostBuilder(args).Build();
+                await host.StartAsync();
 
-        var w = new MainWindow();
-
-        var app = new App();
-
-        app.Run(w);
+                var app = host.Services.GetRequiredService<App>();
+                //app.InitializeComponent();
+                app.Run(new MainWindow(host.Services));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        });
 
         return 0;
     }

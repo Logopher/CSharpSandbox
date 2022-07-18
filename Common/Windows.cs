@@ -1,6 +1,5 @@
-﻿using Microsoft.Win32.SafeHandles;
-using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace CSharpSandbox.Common
 {
@@ -29,5 +28,24 @@ namespace CSharpSandbox.Common
         /// </remarks>
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern int FreeConsole();
+
+        public static Process StartProcess(string filename, string arguments = "", string? workingDirectory = null)
+        {
+            using var process = new Process();
+
+            process.StartInfo = new ProcessStartInfo
+            {
+                FileName = filename,
+                Arguments = arguments,
+                WindowStyle = ProcessWindowStyle.Normal,
+                UseShellExecute = false,
+                CreateNoWindow = false,
+                WorkingDirectory = workingDirectory ?? Path.GetDirectoryName(filename),
+            };
+
+            process.Start();
+
+            return process;
+        }
     }
 }

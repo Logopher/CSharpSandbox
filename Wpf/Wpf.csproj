@@ -5,11 +5,15 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <StartupObject>CSharpSandbox.Wpf.Program</StartupObject>
+    <PackageId>$(SolutionName).$(AssemblyName)</PackageId>
+    <RootNamespace>$(SolutionName).$(AssemblyName)</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="App.xaml.cs" />
+    <Compile Remove="View\ExecutorWrapper.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,17 +21,30 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AvalonEdit" Version="6.1.3.50" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
+    <PackageReference Include="NetMQ" Version="4.0.1.9" />
     <PackageReference Include="NLog" Version="5.0.1" />
     <PackageReference Include="NLog.Extensions.Logging" Version="5.0.1" />
     <PackageReference Include="NLog.Schema" Version="5.0.1" />
-    <PackageReference Include="Simple.Wpf.Terminal" Version="2.3.49" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ICSharpCode.AvalonEdit">
+      <HintPath>..\..\AvalonEdit\ICSharpCode.AvalonEdit\bin\Debug\net6.0-windows\ICSharpCode.AvalonEdit.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Execution\" />
   </ItemGroup>
 
 </Project>

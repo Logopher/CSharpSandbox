@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wpf", "Wpf\Wpf.csproj", "{D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common", "Common\Common.csproj", "{D77720AC-A1FF-4AB8-8B91-CD9287E0FB75}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mvc", "Mvc\Mvc.csproj", "{A4ED8F89-F340-4F69-A3E9-8D6715080AB0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mvc", "Mvc\Mvc.csproj", "{A4ED8F89-F340-4F69-A3E9-8D6715080AB0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Daq", "Daq\Daq.csproj", "{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{A4ED8F89-F340-4F69-A3E9-8D6715080AB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4ED8F89-F340-4F69-A3E9-8D6715080AB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4ED8F89-F340-4F69-A3E9-8D6715080AB0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -4,6 +4,8 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>$(SolutionName).$(AssemblyName)</RootNamespace>
+    <PackageId>$(SolutionName).$(AssemblyName)</PackageId>
   </PropertyGroup>
   
   <ItemGroup>
