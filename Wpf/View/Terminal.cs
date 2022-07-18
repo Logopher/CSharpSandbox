@@ -21,29 +21,14 @@ namespace CSharpSandbox.Wpf.View
         private StreamReader? _shellOutput;
         private StreamWriter? _shellInput;
         private StreamReader? _shellError;
+        private Task? _readWriteTask;
+        private Task? _readErrorsTask;
         private string? _enteredCommand;
-        private Task<Task>? _readWriteTask;
-        private Task<Task>? _readErrorsTask;
         private readonly Regex _shellPromptPattern = new(@"^([A-Za-z]:(?:\\[A-Za-z0-9._ -]+)+\\?)>$");
         private readonly CancellationTokenSource _keyboardInterrupt = new();
         private readonly TaskFactory _taskFactory = new();
 
-        private int LastLineStart
-        {
-            get
-            {
-                var lineEnd = Text.LastIndexOf(Environment.NewLine);
-
-                if (lineEnd == -1)
-                {
-                    return 0;
-                }
-                else
-                {
-                    return lineEnd + Environment.NewLine.Length;
-                }
-            }
-        }
+        private int LastLineStart => Text.LastIndexOf(Environment.NewLine) + Environment.NewLine.Length;
         private string LastLine => Text[LastLineStart..];
         private int CommandStart => LastLineStart + FullPrompt.Length;
         private string Command => Text[CommandStart..];
@@ -52,7 +37,6 @@ namespace CSharpSandbox.Wpf.View
         private bool IsInputRestricted => !IsStarted || _isExecuting || CaretOffset < CommandStart;
 
         public bool IsStarted { get; private set; }
-
         public string? CurrentDirectory { get; private set; }
 
         public Terminal()
@@ -75,7 +59,7 @@ namespace CSharpSandbox.Wpf.View
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     RedirectStandardInput = true,
-                    CreateNoWindow = true,
+                    CreateNoWindow = false,
                     WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 }
             };
@@ -86,13 +70,13 @@ namespace CSharpSandbox.Wpf.View
             _shellInput = _shellProcess.StandardInput;
             _shellError = _shellProcess.StandardError;
 
-            IsStarted = true;
-
             _readWriteTask = _taskFactory.StartNew(ReadWriteShell, _keyboardInterrupt.Token);
             _readErrorsTask = _taskFactory.StartNew(ReadErrors, _keyboardInterrupt.Token);
+
+            IsStarted = true;
         }
 
-        private async Task ReadErrors()
+        private void ReadErrors()
         {
             if (_shellError == null)
             {
@@ -109,7 +93,7 @@ namespace CSharpSandbox.Wpf.View
 
             while (!(_shellProcess!.HasExited))
             {
-                while (_shellError.Peek() != -1)
+                while (true)
                 {
                     int next = _shellError.Read();
 
@@ -125,11 +109,10 @@ namespace CSharpSandbox.Wpf.View
                         flushError();
                     }
                 }
-                flushError();
             }
         }
 
-        private async Task ReadWriteShell()
+        private void ReadWriteShell()
         {
             if (_shellOutput == null)
             {
@@ -151,7 +134,7 @@ namespace CSharpSandbox.Wpf.View
 
             while (!(_shellProcess!.HasExited))
             {
-                while (_shellOutput.Peek() != -1)
+                while (true)
                 {
                     int next = _shellOutput.Read();
 
@@ -184,13 +167,12 @@ namespace CSharpSandbox.Wpf.View
                         _isExecuting = false;
                     }
                 }
-                flushOutput();
             }
         }
 
         public void End() => _shellProcess?.Kill();
 
-        private async Task Execute(string command)
+        private void Execute(string command)
         {
             Debug.Assert(!_isExecuting);
             Debug.Assert(_shellInput != null);
@@ -198,11 +180,6 @@ namespace CSharpSandbox.Wpf.View
             _isExecuting = true;
 
             _shellInput.Write(command + Environment.NewLine);
-
-            var readWriteTask = _taskFactory.StartNew(ReadWriteShell, _keyboardInterrupt.Token);
-            var readErrorsTask = _taskFactory.StartNew(ReadErrors, _keyboardInterrupt.Token);
-
-            await Task.WhenAll(readWriteTask, readErrorsTask);
         }
 
         private void Print(string? text = null, bool newline = true)
