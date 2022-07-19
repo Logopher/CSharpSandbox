@@ -11,22 +11,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Text.RegularExpressions;
+using CSharpSandbox.Wpf.Shells;
 
 namespace CSharpSandbox.Wpf.View
 {
     public class Terminal : TextEditor
     {
-        private bool _isExecuting = false;
-        private Process? _shellProcess;
-        private StreamReader? _shellOutput;
-        private StreamWriter? _shellInput;
-        private StreamReader? _shellError;
-        private Task? _readWriteTask;
-        private Task? _readErrorsTask;
-        private string? _enteredCommand;
-        private readonly Regex _shellPromptPattern = new(@"^([A-Za-z]:(?:\\[A-Za-z0-9._ -]+)+\\?)>$");
         private readonly CancellationTokenSource _keyboardInterrupt = new();
-        private readonly TaskFactory _taskFactory = new();
+        private readonly IShellDriver _shellDriver;
+        private string? _enteredCommand;
+        private int _commandStart = 0;
 
         private int LastLineStart
         {
@@ -45,17 +39,16 @@ namespace CSharpSandbox.Wpf.View
             }
         }
         private string LastLine => Text[LastLineStart..];
-        private int CommandStart => LastLineStart + FullPrompt.Length;
-        private string Command => Text[CommandStart..];
+        private string Command => Text[_commandStart..];
 
-        private string FullPrompt => "> ";
-        private bool IsInputRestricted => !IsStarted || CaretOffset < Math.Min(CommandStart, Text.Length);
+        private bool IsInputRestricted => !IsStarted || CaretOffset < Math.Min(_commandStart, Text.Length);
 
-        public bool IsStarted { get; private set; }
-        public string? CurrentDirectory { get; private set; }
+        public bool IsStarted => _shellDriver.HasStarted;
 
         public Terminal()
         {
+            _shellDriver = new BatchDriver();
+
             PreviewKeyDown += Self_PreviewKeyDown;
             PreviewTextInput += Self_PreviewTextInput;
             PreviewKeyUp += Self_PreviewKeyUp;
@@ -63,143 +56,37 @@ namespace CSharpSandbox.Wpf.View
 
         public void Start()
         {
-            _shellProcess = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "cmd",
-                    Arguments = null,
-                    WindowStyle = ProcessWindowStyle.Normal,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    RedirectStandardInput = true,
-                    CreateNoWindow = true,
-                    WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                }
-            };
-
-            _shellProcess.Start();
-
-            _shellOutput = _shellProcess.StandardOutput;
-            _shellInput = _shellProcess.StandardInput;
-            _shellError = _shellProcess.StandardError;
-
-            _readWriteTask = _taskFactory.StartNew(ReadWriteShell, _keyboardInterrupt.Token);
-            _readErrorsTask = _taskFactory.StartNew(ReadErrors, _keyboardInterrupt.Token);
-
-            IsStarted = true;
-        }
-
-        private void Read(StreamReader reader)
-        {
-            if (reader == null)
-            {
-                throw new ArgumentNullException(nameof(reader));
-            }
-
-            string buffer = string.Empty;
-
-            while (!(_shellProcess!.HasExited))
-            {
-                do
-                {
-                    var next = (char)reader.Read();
-
-                    buffer += next;
-                }
-                while (!buffer.EndsWith(Environment.NewLine));
-
-                Dispatcher.Invoke(() => Print(buffer.ToString(), false));
-                buffer = string.Empty;
-            }
-        }
-
-        private void ReadErrors()
-        {
-            if (_shellError == null)
-            {
-                throw new InvalidOperationException("Output stream not initialized.");
-            }
-
-            Read(_shellError);
-        }
-
-        private void ReadWriteShell()
-        {
-            if (_shellOutput == null)
-            {
-                throw new InvalidOperationException("Output stream not initialized.");
-            }
-
-            string outputBuffer = string.Empty;
-
-            while (!(_shellProcess!.HasExited))
-            {
-                while (!outputBuffer.EndsWith(Environment.NewLine))
-                {
-                    var next = (char)_shellOutput.Read();
-
-                    outputBuffer += next;
-
-                    if (_shellPromptPattern.Match(outputBuffer)?.Success ?? false)
-                    {
-                        break;
-                    }
-                }
-
-                var match = _shellPromptPattern.Match(outputBuffer);
-                if (match?.Success ?? false)
-                {
-                    CurrentDirectory = match.Groups[1].Value;
-                    outputBuffer = string.Empty;
-                    Dispatcher.Invoke(() =>
-                    {
-                        Print(FullPrompt, false);
-                        CaretOffset = Text.Length;
-                    });
-                    _enteredCommand = null;
-                    _isExecuting = false;
-                }
-                else if (outputBuffer != (_enteredCommand + Environment.NewLine))
-                {
-                    Dispatcher.Invoke(() => Print(outputBuffer, false));
-                }
-                outputBuffer = string.Empty;
-            }
-        }
-
-        public void End() => _shellProcess?.Kill();
-
-        private void Execute(string command)
-        {
-            Debug.Assert(!_isExecuting);
-            Debug.Assert(_shellInput != null);
-
-            _isExecuting = true;
-
-            _shellInput.Write(command + Environment.NewLine);
+            _shellDriver.Start((text, newline) => Dispatcher.Invoke(() => Print(text, newline)));
         }
 
         private void Print(string? text = null, bool newline = true)
         {
             text ??= string.Empty;
 
+            var wasCaretAtEnd = CaretOffset == Text.Length;
+
             if (newline)
             {
                 text += Environment.NewLine;
             }
             Text += text;
-        }
 
-        private void StopExecution()
-        {
-            _keyboardInterrupt.Cancel(true);
+            _commandStart = Text.Length;
+
+            if (wasCaretAtEnd)
+            {
+                CaretOffset = _commandStart;
+                ScrollToEnd();
+            }
         }
 
         private void Self_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            Debug.Assert(LastLine.StartsWith(FullPrompt));
+            if (!IsStarted)
+            {
+                e.Handled = true;
+                return;
+            }
 
             // Never restrict unmodified arrow keys.
             if (e.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.None))
@@ -225,7 +112,7 @@ namespace CSharpSandbox.Wpf.View
                 switch (e.Key)
                 {
                     case Key.C:
-                        StopExecution();
+                        _shellDriver.StopExecution();
                         e.Handled = true;
                         return;
                 }
@@ -244,18 +131,28 @@ namespace CSharpSandbox.Wpf.View
 
         private void Self_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            Debug.Assert(LastLine.StartsWith(FullPrompt));
+            if (!IsStarted)
+            {
+                e.Handled = true;
+                return;
+            }
 
         }
 
         private void Self_PreviewKeyUp(object sender, KeyEventArgs e)
         {
+            if (!IsStarted)
+            {
+                e.Handled = true;
+                return;
+            }
+
             switch (e.Key)
             {
                 case Key.Enter:
                     Debug.Assert(_enteredCommand != null);
 
-                    Execute(_enteredCommand);
+                    _shellDriver.Execute(_enteredCommand);
                     break;
             }
         }
