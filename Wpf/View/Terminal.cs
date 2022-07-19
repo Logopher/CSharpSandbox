@@ -49,7 +49,7 @@ namespace CSharpSandbox.Wpf.View
         private string Command => Text[CommandStart..];
 
         private string FullPrompt => "> ";
-        private bool IsInputRestricted => !IsStarted || _isExecuting || CaretOffset < CommandStart;
+        private bool IsInputRestricted => !IsStarted || CaretOffset < Math.Min(CommandStart, Text.Length);
 
         public bool IsStarted { get; private set; }
         public string? CurrentDirectory { get; private set; }
@@ -152,8 +152,12 @@ namespace CSharpSandbox.Wpf.View
                 if (match?.Success ?? false)
                 {
                     CurrentDirectory = match.Groups[1].Value;
-                    Dispatcher.Invoke(() => Print(FullPrompt, false));
                     outputBuffer = string.Empty;
+                    Dispatcher.Invoke(() =>
+                    {
+                        Print(FullPrompt, false);
+                        CaretOffset = Text.Length;
+                    });
                     _enteredCommand = null;
                     _isExecuting = false;
                 }
@@ -197,6 +201,7 @@ namespace CSharpSandbox.Wpf.View
         {
             Debug.Assert(LastLine.StartsWith(FullPrompt));
 
+            // Never restrict unmodified arrow keys.
             if (e.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.None))
             {
                 switch (e.Key)
