@@ -38,5 +38,19 @@ namespace CSharpSandbox.Wpf
             t.SetApartmentState(ApartmentState.STA);
             t.Start();
         }
+
+        public static Task<bool> WaitForInterrupt()
+        {
+            TaskCompletionSource<bool> tcs = new();
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(50);
+
+                tcs.SetResult(false);
+            });
+
+            return tcs.Task;
+        }
     }
 }

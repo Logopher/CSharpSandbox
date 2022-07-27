@@ -14,7 +14,7 @@ namespace CSharpSandbox.Wpf.Shells
 
         void Start(Action<string, bool> print);
         void End();
-        void Execute(string command);
+        Task Execute(string command);
         void StopExecution();
     }
 }
