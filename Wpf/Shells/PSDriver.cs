@@ -14,12 +14,7 @@ namespace CSharpSandbox.Wpf.Shells
 
         public string FullPrompt => throw new NotImplementedException();
 
-        public void Start(Action<string, bool> print)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void End()
+        public async Task Start(Action<string, bool> print)
         {
             throw new NotImplementedException();
         }
@@ -30,6 +25,11 @@ namespace CSharpSandbox.Wpf.Shells
         }
 
         public void StopExecution()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void End()
         {
             throw new NotImplementedException();
         }

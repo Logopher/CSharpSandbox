@@ -22,9 +22,21 @@ public class Waiter
 
         if (_timer.IsRunning)
         {
-            _tcs.SetResult(false);
-            _timer.Stop();
+            Stop(false);
         }
+    }
+
+    private void Stop(bool result)
+    {
+        if (_tcs == null || _timer == null)
+        {
+            throw new InvalidOperationException();
+        }
+
+        _tcs.SetResult(result);
+        _timer.Stop();
+        _tcs = null;
+        _timer = null;
     }
 
     public Task<bool> Wait(int duration, int period, Func<bool> poll)
@@ -34,23 +46,19 @@ public class Waiter
 
         _timer.TimerEvent += (_, _) =>
         {
-            if (_timer.HasCompleted)
+            if (_timer?.HasCompleted ?? true)
             {
                 return;
             }
 
             if (!poll())
             {
-                _tcs.SetResult(false);
-                _timer.Stop();
+                Stop(false);
             }
             else if (_timer.DueTime - _timer.Period < DateTime.Now)
             {
-                _tcs.SetResult(true);
-                _timer.Stop();
+                Stop(true);
             }
-
-            string.Empty.ToString();
         };
 
         _timer.Start(TimeSpan.FromMilliseconds(duration), TimeSpan.FromMilliseconds(period));

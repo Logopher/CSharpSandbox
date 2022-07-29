@@ -54,9 +54,9 @@ namespace CSharpSandbox.Wpf.View
             PreviewKeyUp += Self_PreviewKeyUp;
         }
 
-        public void Start()
+        public async Task Start()
         {
-            _shellDriver.Start((text, newline) => Dispatcher.Invoke(() => Print(text, newline)));
+            await _shellDriver.Start((text, newline) => Dispatcher.Invoke(() => Print(text, newline)));
         }
 
         private void Print(string? text = null, bool newline = true)

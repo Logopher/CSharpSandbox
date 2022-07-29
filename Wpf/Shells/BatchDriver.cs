@@ -5,12 +5,9 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
-using System.Timers;
-
-using Timer = System.Timers.Timer;
-using ThreadedTimer = System.Threading.Timer;
 using System.Collections.Generic;
-using CSharpSandbox.Common;
+using System.Text;
+using System.Collections.Concurrent;
 using System.Linq;
 
 namespace CSharpSandbox.Wpf.Shells;
@@ -19,16 +16,18 @@ internal class BatchDriver : IShellDriver
 {
     private Action<string, bool>? _print;
     private Process? _shellProcess;
-    private ShellStreamReader? _shellOutput;
+    private StreamReader? _shellOutput;
     private StreamWriter? _shellInput;
-    private ShellStreamReader? _shellError;
-    private Task? _readOutputTask;
-    private Task? _readErrorsTask;
+    private StreamReader? _shellError;
+    private Thread? _outputThread;
+    private Thread? _errorThread;
+    private Thread? _queueThread;
     private string? _enteredCommand;
+    private TaskCompletionSource _whenIdle = new();
+    private readonly Dictionary<StreamReader, StringBuilder> _buffers = new();
     private readonly Regex _shellPromptPattern = new(@"^([A-Za-z]:(?:\\[A-Za-z0-9._ -]+)+\\?)>$");
     private readonly CancellationTokenSource _keyboardInterrupt = new();
-    private readonly TaskFactory _taskFactory = new();
-    private readonly TaskCompletionSource _taskCompletionSource = new();
+    private readonly BlockingCollection<Message> _queue = new();
 
     public bool HasStarted { get; private set; }
 
@@ -40,7 +39,7 @@ internal class BatchDriver : IShellDriver
 
     public string? CurrentDirectory { get; private set; }
 
-    public void Start(Action<string, bool> print)
+    public async Task Start(Action<string, bool> print)
     {
         _print = print ?? throw new ArgumentNullException(nameof(print));
 
@@ -62,116 +61,204 @@ internal class BatchDriver : IShellDriver
 
         _shellProcess.Start();
 
-        _shellOutput = new(_shellProcess, _shellProcess.StandardOutput, Print);
+        _shellOutput = _shellProcess.StandardOutput;
         _shellInput = _shellProcess.StandardInput;
-        _shellError = new(_shellProcess, _shellProcess.StandardError, Print);
+        _shellError = _shellProcess.StandardError;
 
-        _readOutputTask = _taskFactory.StartNew(ReadOutputStream, _keyboardInterrupt.Token);
-        _readErrorsTask = _taskFactory.StartNew(ReadErrorStream, _keyboardInterrupt.Token);
+        _outputThread = new Thread(async () => await WriteQueue(_shellOutput, string.Empty, true));
+        _outputThread.Start();
+
+        _errorThread = new Thread(async () => await WriteQueue(_shellError, "e: ", false));
+        _errorThread.Start();
+
+        _queueThread = new Thread(ReadQueue);
+        _queueThread.Start();
+
+        Print(FullPrompt, false);
 
         HasStarted = true;
     }
+
+    private void ReadQueue()
+    {
+        /*
+        var dict = new Dictionary<object, List<Message>>();
+        List<Message> get(object o)
+        {
+            if (!(dict!.TryGetValue(o, out var list)))
+            {
+                list = new List<Message>();
+                dict.Add(o, list);
+            }
+            return list;
+        }
+        */
+
+        Message? result;
+        while (true)
+        {
+            if (!_queue.TryTake(out result, -1))
+            {
+                if (!_whenIdle.Task.IsCompleted)
+                {
+                    _whenIdle.SetResult();
+                }
+                continue;
+            }
+
+            if (result == null)
+            {
+                throw new Exception();
+            }
+
+            Print(result.Text, false);
+
+            if (result.EndOfContent && !_whenIdle.Task.IsCompleted)
+            {
+                _whenIdle.SetResult();
+            }
+        }
+    }
+
     public void End() => _shellProcess?.Kill();
 
     public async Task Execute(string command)
     {
-        Debug.Assert(_shellOutput != null);
-        Debug.Assert(_shellInput != null);
-        Debug.Assert(_shellError != null);
+        if (_shellOutput == null || _shellError == null || _shellInput == null)
+        {
+            throw new InvalidOperationException();
+        }
 
         IsExecuting = true;
+
+        _whenIdle = new();
 
         _enteredCommand = command;
 
         _shellInput.Write(command + Environment.NewLine);
 
-        async Task<bool> output()
-        {
-            var result = await _shellOutput!.WaitForIdle();
-            return result;
-        }
-        async Task<bool> error()
-        {
-            var result = await _shellError!.WaitForIdle();
-            return result;
-        }
-
-        //var idle = await Task.WhenAll(output(), error());
-        var idle = await Task.WhenAll(error());
-
-        Debug.Assert(idle != null && idle.All(b => b));
+        await _whenIdle.Task;
 
         Print(FullPrompt, false);
 
         IsExecuting = false;
     }
 
+    private async Task WriteQueue(StreamReader reader, string linePrefix, bool suppressPrompt)
+    {
+        if (_shellOutput == null || _shellError == null || _shellInput == null)
+        {
+            throw new InvalidOperationException();
+        }
+
+        while (!reader.EndOfStream)
+        {
+            foreach (var line in ReadLines(reader))
+            {
+                if (!suppressPrompt || !line.Item3)
+                {
+                    _queue.Add(new Message(reader, line.Item3, line.Item2, linePrefix + line.Item1));
+                }
+            }
+
+            await Task.Delay(25);
+        }
+
+        Print(FullPrompt, false);
+    }
+
+    private int Peek(StreamReader reader)
+    {
+        var buffer = GetBuffer(reader);
+        if (0 < buffer.Length)
+        {
+            return buffer[0];
+        }
+
+        FillBuffer(reader);
+
+        var ch = buffer.Length == 0 ? -1 : buffer[0];
+        return ch;
+    }
+
+    private IEnumerable<(string, DateTime, bool)> ReadLines(StreamReader reader)
+    {
+        var lines = new List<(string, DateTime)>();
+
+        var buffer = GetBuffer(reader);
+
+        while (-1 < reader.Peek())
+        {
+            var now = DateTime.Now;
+
+            FillBuffer(reader);
+
+            var bufferContents = buffer.ToString();
+
+            lines.AddRange(bufferContents.Split(Environment.NewLine).Select((s, i) =>
+            {
+                return (s, now);
+            }));
+            buffer.Clear();
+
+            if (lines.Count == 0)
+            {
+                continue;
+            }
+
+            var lastIsPrompt = false;
+            var lastLine = lines.Last();
+            lines.RemoveAt(lines.Count - 1);
+
+            if (lastLine.Item1 != string.Empty)
+            {
+                var match = _shellPromptPattern.Match(lastLine.Item1);
+                lastIsPrompt = match?.Success ?? false;
+                if (!lastIsPrompt)
+                {
+                    buffer.Append(lastLine.Item1);
+                }
+            }
+
+            foreach (var line in lines)
+            {
+                yield return (line.Item1 + Environment.NewLine, line.Item2, false);
+            }
+
+            lines.Clear();
+
+            if (lastIsPrompt)
+            {
+                yield return (lastLine.Item1, lastLine.Item2, true);
+            }
+        }
+    }
+
+    private StringBuilder GetBuffer(StreamReader reader)
+    {
+        if (!_buffers.TryGetValue(reader, out var buffer))
+        {
+            buffer = new StringBuilder();
+            _buffers.Add(reader, buffer);
+        }
+        return buffer;
+    }
+
+    private void FillBuffer(StreamReader reader)
+    {
+        if (-1 < reader.Peek())
+        {
+            var tempBuffer = new char[1024];
+
+            var read = reader.Read(tempBuffer, 0, tempBuffer.Length);
+
+            GetBuffer(reader).Append(tempBuffer, 0, read);
+        }
+    }
+
     public void StopExecution()
     {
         _keyboardInterrupt.Cancel(true);
-    }
-
-    private void ReadErrorStream()
-    {
-        if (_shellError == null)
-        {
-            throw new InvalidOperationException("Error stream not initialized.");
-        }
-
-        _shellError.Read(null, null);
-    }
-
-    private void ReadOutputStream()
-    {
-        if (_shellOutput == null)
-        {
-            throw new InvalidOperationException("Output stream not initialized.");
-        }
-
-        Match? match = null;
-        bool matchSuccess = false;
-
-        _shellOutput.Read(e =>
-            {
-                Debug.Assert(e != null);
-
-                match = _shellPromptPattern.Match(e.ChunkBuffer);
-                matchSuccess = match?.Success ?? false;
-                e.BreakChunk = matchSuccess;
-            },
-            e =>
-            {
-                Debug.Assert(e != null);
-
-                if (matchSuccess)
-                {
-                    CurrentDirectory = match!.Groups[1].Value;
-                    _enteredCommand = null;
-                    if (IsExecuting)
-                    {
-                        if (_shellOutput.IsIdle)
-                            _shellOutput.ProclaimIdle();
-                        e.ChunkBuffer = string.Empty;
-                    }
-                    else
-                    {
-                        e.ChunkBuffer = FullPrompt;
-                    }
-                }
-                else if (e.ChunkBuffer == (_enteredCommand + Environment.NewLine))
-                {
-                    e.ChunkBuffer = string.Empty;
-                }
-
-                matchSuccess = false;
-
-                Task.Run(async () =>
-                {
-                    await Task.Delay(50);
-
-                    _taskCompletionSource.SetResult();
-                });
-            });
     }
 
     private void Print(string text, bool newline = true)

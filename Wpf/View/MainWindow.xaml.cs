@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace CSharpSandbox.Wpf.View
@@ -19,7 +20,7 @@ namespace CSharpSandbox.Wpf.View
 
             InitializeComponent();
 
-            Terminal.Start();
+            Task.Run(Terminal.Start);
         }
     }
 }

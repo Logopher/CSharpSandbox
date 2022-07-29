@@ -9,6 +9,7 @@ namespace CSharpSandbox.Common;
 public class TimerHelper : IDisposable
 {
     private Timer? _timer;
+    private TimeSpan? _stopTimeout;
     private readonly object _threadLock = new();
 
     public bool HasStarted { get; private set; }
@@ -51,24 +52,7 @@ public class TimerHelper : IDisposable
             throw new InvalidOperationException("Attempted to stop a timer which was not running.");
         }
 
-        // Wait for timer queue to be emptied, before we continue
-        // (Timer threads should have left the callback method given)
-        // - http://woowaabob.blogspot.dk/2010/05/properly-disposing-systemthreadingtimer.html
-        // - http://blogs.msdn.com/b/danielvl/archive/2011/02/18/disposing-system-threading-timer.aspx
-        lock (_threadLock)
-        {
-            ManualResetEvent waitHandle = new ManualResetEvent(false);
-            if (_timer.Dispose(waitHandle))
-            {
-                // Timer has not been disposed by someone else
-                if (!waitHandle.WaitOne(timeout))
-                    throw new TimeoutException("Timeout waiting for timer to stop");
-            }
-            IsRunning = false;
-            HasCompleted = true;
-            waitHandle.Close();   // Only close if Dispose has completed succesful
-            _timer = null;
-        }
+        _stopTimeout = timeout;
     }
 
     public void Dispose()
@@ -94,6 +78,26 @@ public class TimerHelper : IDisposable
                 }
 
                 TimerEvent?.Invoke(_timer, state);
+
+                if (_stopTimeout != null)
+                {
+                    var waitHandle = new ManualResetEvent(false);
+                    _timer.Dispose();
+                    /*
+                    if (_timer.Dispose(waitHandle))
+                    {
+                        // Timer has not been disposed by someone else
+                        if (!waitHandle.WaitOne(_stopTimeout.Value))
+                        {
+                            throw new TimeoutException("Timeout waiting for timer to stop");
+                        }
+                    }
+                    */
+                    IsRunning = false;
+                    HasCompleted = true;
+                    waitHandle.Close();   // Only close if Dispose has completed succesful
+                    _timer = null;
+                }
             }
             finally
             {
