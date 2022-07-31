@@ -139,8 +139,6 @@ internal class BatchDriver : IShellDriver
 
         _whenIdle = new();
 
-        _enteredCommand = command;
-
         _shellInput.Write(command + Environment.NewLine);
 
         await _whenIdle.Task;
