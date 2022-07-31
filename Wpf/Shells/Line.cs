@@ -2,7 +2,7 @@
 
 namespace CSharpSandbox.Wpf.Shells
 {
-    internal class Message
+    internal class Line
     {
         public bool EndOfContent { get; private set; }
 
@@ -12,10 +12,10 @@ namespace CSharpSandbox.Wpf.Shells
 
         public string Text { get; private set; }
 
-        public Message(object token, bool end, DateTime time, string text)
+        public Line(object token, bool isEnd, DateTime time, string text)
         {
             Token = token;
-            EndOfContent = end;
+            EndOfContent = isEnd;
             Time = time;
             Text = text;
         }

@@ -38,6 +38,7 @@ namespace CSharpSandbox.Wpf.View
                 }
             }
         }
+
         private string LastLine => Text[LastLineStart..];
         private string Command => Text[_commandStart..];
 
@@ -54,9 +55,9 @@ namespace CSharpSandbox.Wpf.View
             PreviewKeyUp += Self_PreviewKeyUp;
         }
 
-        public async Task Start()
+        public void Start()
         {
-            await _shellDriver.Start((text, newline) => Dispatcher.Invoke(() => Print(text, newline)));
+            _shellDriver.Start((text, newline) => Dispatcher.Invoke(() => Print(text, newline)));
         }
 
         private void Print(string? text = null, bool newline = true)
@@ -155,6 +156,11 @@ namespace CSharpSandbox.Wpf.View
                     _shellDriver.Execute(_enteredCommand);
                     break;
             }
+        }
+
+        public void Exit()
+        {
+            _shellDriver.End();
         }
     }
 }

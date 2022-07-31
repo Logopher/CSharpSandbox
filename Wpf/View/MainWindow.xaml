@@ -7,7 +7,9 @@
         xmlns:local="clr-namespace:CSharpSandbox.Wpf.View"
         xmlns:vm="clr-namespace:CSharpSandbox.Wpf.ViewModel"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="450" Width="800"
+        Closing="Self_Closing"
+        Closed="Self_Closed">
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>

@@ -14,7 +14,7 @@ namespace CSharpSandbox.Wpf.Shells
 
         public string FullPrompt => throw new NotImplementedException();
 
-        public async Task Start(Action<string, bool> print)
+        public void Start(Action<string, bool> print)
         {
             throw new NotImplementedException();
         }

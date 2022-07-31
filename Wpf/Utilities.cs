@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -10,21 +11,19 @@ namespace CSharpSandbox.Wpf
 {
     public class Utilities
     {
-        public static void StaThreadWrapper(Action<EventHandler> action)
+        public static void StaThreadWrapper(Action action)
         {
             var t = new Thread(o =>
             {
                 try
                 {
+                    /*
                     SynchronizationContext.SetSynchronizationContext(
                         new DispatcherSynchronizationContext(
                             Dispatcher.CurrentDispatcher));
-
-                    action((o, e) =>
-                    {
-                        Dispatcher.CurrentDispatcher.BeginInvokeShutdown(DispatcherPriority.Background);
-                    });
-                    Dispatcher.Run();
+                    */
+                    action();
+                    //Dispatcher.Run();
                 }
                 catch (InvalidOperationException)
                 {

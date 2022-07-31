@@ -1,7 +1,9 @@
 ﻿<Application x:Class="CSharpSandbox.Wpf.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:CSharpSandbox.Wpf">
+             xmlns:local="clr-namespace:CSharpSandbox.Wpf"
+             ShutdownMode="OnMainWindowClose"
+             Exit="Self_Exit">
     <Application.Resources>
          
     </Application.Resources>

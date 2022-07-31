@@ -27,7 +27,7 @@ internal class BatchDriver : IShellDriver
     private readonly Dictionary<StreamReader, StringBuilder> _buffers = new();
     private readonly Regex _shellPromptPattern = new(@"^([A-Za-z]:(?:\\[A-Za-z0-9._ -]+)+\\?)>$");
     private readonly CancellationTokenSource _keyboardInterrupt = new();
-    private readonly BlockingCollection<Message> _queue = new();
+    private readonly BlockingCollection<Line> _queue = new();
 
     public bool HasStarted { get; private set; }
 
@@ -39,7 +39,7 @@ internal class BatchDriver : IShellDriver
 
     public string? CurrentDirectory { get; private set; }
 
-    public async Task Start(Action<string, bool> print)
+    public void Start(Action<string, bool> print)
     {
         _print = print ?? throw new ArgumentNullException(nameof(print));
 
@@ -65,39 +65,42 @@ internal class BatchDriver : IShellDriver
         _shellInput = _shellProcess.StandardInput;
         _shellError = _shellProcess.StandardError;
 
-        _outputThread = new Thread(async () => await WriteQueue(_shellOutput, string.Empty, true));
+        _outputThread = new Thread(async () => await WriteQueue(_shellOutput, (text, time, isEnd) =>
+        {
+            if (text == (_enteredCommand + Environment.NewLine))
+            {
+                return null;
+            }
+
+            return new Line(
+                _shellOutput,
+                isEnd,
+                time,
+                isEnd ? FullPrompt : text);
+        }));
         _outputThread.Start();
 
-        _errorThread = new Thread(async () => await WriteQueue(_shellError, "e: ", false));
+        _errorThread = new Thread(async () => await WriteQueue(_shellError, (text, time, isEnd) =>
+        {
+            return new Line(
+                _shellError,
+                isEnd,
+                time,
+                text);
+        }));
         _errorThread.Start();
 
         _queueThread = new Thread(ReadQueue);
         _queueThread.Start();
-
-        Print(FullPrompt, false);
 
         HasStarted = true;
     }
 
     private void ReadQueue()
     {
-        /*
-        var dict = new Dictionary<object, List<Message>>();
-        List<Message> get(object o)
+        while (!HasExited)
         {
-            if (!(dict!.TryGetValue(o, out var list)))
-            {
-                list = new List<Message>();
-                dict.Add(o, list);
-            }
-            return list;
-        }
-        */
-
-        Message? result;
-        while (true)
-        {
-            if (!_queue.TryTake(out result, -1))
+            if (!_queue.TryTake(out Line? result, 50))
             {
                 if (!_whenIdle.Task.IsCompleted)
                 {
@@ -120,7 +123,10 @@ internal class BatchDriver : IShellDriver
         }
     }
 
-    public void End() => _shellProcess?.Kill();
+    public void End()
+    {
+        _shellProcess?.Kill();
+    }
 
     public async Task Execute(string command)
     {
@@ -139,12 +145,10 @@ internal class BatchDriver : IShellDriver
 
         await _whenIdle.Task;
 
-        Print(FullPrompt, false);
-
         IsExecuting = false;
     }
 
-    private async Task WriteQueue(StreamReader reader, string linePrefix, bool suppressPrompt)
+    private async Task WriteQueue(StreamReader reader, Func<string, DateTime, bool, Line?> cstor)
     {
         if (_shellOutput == null || _shellError == null || _shellInput == null)
         {
@@ -153,18 +157,13 @@ internal class BatchDriver : IShellDriver
 
         while (!reader.EndOfStream)
         {
-            foreach (var line in ReadLines(reader))
+            foreach (var line in ReadLines(reader, cstor))
             {
-                if (!suppressPrompt || !line.Item3)
-                {
-                    _queue.Add(new Message(reader, line.Item3, line.Item2, linePrefix + line.Item1));
-                }
+                _queue.Add(line);
             }
 
             await Task.Delay(25);
         }
-
-        Print(FullPrompt, false);
     }
 
     private int Peek(StreamReader reader)
@@ -181,9 +180,9 @@ internal class BatchDriver : IShellDriver
         return ch;
     }
 
-    private IEnumerable<(string, DateTime, bool)> ReadLines(StreamReader reader)
+    private IEnumerable<Line> ReadLines(StreamReader reader, Func<string, DateTime, bool, Line?> cstor)
     {
-        var lines = new List<(string, DateTime)>();
+        var lines = new List<string>();
 
         var buffer = GetBuffer(reader);
 
@@ -195,10 +194,7 @@ internal class BatchDriver : IShellDriver
 
             var bufferContents = buffer.ToString();
 
-            lines.AddRange(bufferContents.Split(Environment.NewLine).Select((s, i) =>
-            {
-                return (s, now);
-            }));
+            lines.AddRange(bufferContents.Split(Environment.NewLine));
             buffer.Clear();
 
             if (lines.Count == 0)
@@ -210,26 +206,34 @@ internal class BatchDriver : IShellDriver
             var lastLine = lines.Last();
             lines.RemoveAt(lines.Count - 1);
 
-            if (lastLine.Item1 != string.Empty)
+            if (lastLine != string.Empty)
             {
-                var match = _shellPromptPattern.Match(lastLine.Item1);
+                var match = _shellPromptPattern.Match(lastLine);
                 lastIsPrompt = match?.Success ?? false;
                 if (!lastIsPrompt)
                 {
-                    buffer.Append(lastLine.Item1);
+                    buffer.Append(lastLine);
                 }
             }
 
             foreach (var line in lines)
             {
-                yield return (line.Item1 + Environment.NewLine, line.Item2, false);
+                var temp = cstor(line + Environment.NewLine, now, false);
+                if (temp != null)
+                {
+                    yield return temp;
+                }
             }
 
             lines.Clear();
 
             if (lastIsPrompt)
             {
-                yield return (lastLine.Item1, lastLine.Item2, true);
+                var temp = cstor(lastLine, now, true);
+                if (temp != null)
+                {
+                    yield return temp;
+                }
             }
         }
     }

@@ -12,7 +12,7 @@ namespace CSharpSandbox.Wpf.Shells
         bool HasExited { get; }
         string FullPrompt { get; }
 
-        Task Start(Action<string, bool> print);
+        void Start(Action<string, bool> print);
         Task Execute(string command);
         void StopExecution();
         void End();

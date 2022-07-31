@@ -12,12 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="App.xaml.cs" />
     <Compile Remove="View\ExecutorWrapper.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="App.xaml.cs" />
   </ItemGroup>
 
   <ItemGroup>

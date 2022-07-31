@@ -18,6 +18,9 @@ namespace CSharpSandbox.Wpf
 
         }
 
-        public void InitializeComponent() { }
+        public void Self_Exit(object sender, ExitEventArgs e)
+        {
+            
+        }
     }
 }

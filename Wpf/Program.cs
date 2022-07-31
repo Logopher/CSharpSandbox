@@ -35,7 +35,7 @@ public class Program
     {
         try
         {
-            Utilities.StaThreadWrapper(async windowClosed =>
+            Utilities.StaThreadWrapper(async () =>
             {
                 try
                 {
@@ -45,7 +45,7 @@ public class Program
                     var app = host.Services.GetRequiredService<App>();
 
                     var window = new MainWindow(host.Services);
-                    window.Closed += windowClosed;
+                    //window.Closing += windowClosed;
 
                     app.Run(window);
                 }
