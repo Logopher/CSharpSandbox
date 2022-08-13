@@ -108,6 +108,21 @@ namespace CSharpSandbox.Wpf.View
                 return;
             }
 
+            // Backspace is a special case because it can delete restricted text
+            // while the caret is in an unrestricted position.
+            if (!e.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.Alt))
+            {
+                switch (e.Key)
+                {
+                    case Key.Back:
+                        if (CaretOffset <= _commandStart)
+                        {
+                            e.Handled = true;
+                        }
+                        return;
+                }
+            }
+
             if (e.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.Control))
             {
                 switch (e.Key)
@@ -119,7 +134,7 @@ namespace CSharpSandbox.Wpf.View
                 }
             }
 
-            if (e.KeyboardDevice.Modifiers.HasFlag(ModifierKeys.None))
+            if (e.KeyboardDevice.Modifiers == ModifierKeys.None)
             {
                 switch (e.Key)
                 {

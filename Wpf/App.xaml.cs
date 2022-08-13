@@ -5,6 +5,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace CSharpSandbox.Wpf
 {
@@ -15,12 +16,17 @@ namespace CSharpSandbox.Wpf
     {
         public App()
         {
-
+            DispatcherUnhandledException += Self_DispatcherUnhandledException;
         }
 
         public void Self_Exit(object sender, ExitEventArgs e)
         {
-            
+
+        }
+
+        void Self_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+
         }
     }
 }

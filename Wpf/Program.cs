@@ -37,21 +37,24 @@ public class Program
         {
             Utilities.StaThreadWrapper(async () =>
             {
+                App? app = null;
+                MainWindow? window = null;
                 try
                 {
                     using var host = CreateHostBuilder(args).Build();
                     await host.StartAsync();
 
-                    var app = host.Services.GetRequiredService<App>();
+                    app = host.Services.GetRequiredService<App>();
 
-                    var window = new MainWindow(host.Services);
-                    //window.Closing += windowClosed;
+                    window = new MainWindow(host.Services);
 
                     app.Run(window);
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
+                    window?.Close();
+                    app?.Shutdown();
                 }
             });
         }

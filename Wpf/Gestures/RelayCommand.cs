@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Windows.Input;
 
-namespace CSharpSandbox.Wpf
+namespace CSharpSandbox.Wpf.Gestures
 {
     public sealed class RelayCommand : RelayCommand<object>
     {
-        public RelayCommand(Action execute)
-            : base(_ => execute(), _ => true)
-        {
-        }
-
-        public RelayCommand(Action execute, Func<bool> canExecute) : base(_ => execute(), _ => canExecute())
+        public RelayCommand(Action execute, Func<bool>? canExecute = null)
+            : base(
+                  _ => execute(),
+                  canExecute == null ? _ => true : _ => canExecute())
         {
         }
     }

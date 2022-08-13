@@ -9,16 +9,23 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800"
         Closing="Self_Closing"
-        Closed="Self_Closed">
+        Closed="Self_Closed"
+        PreviewKeyDown="Self_PreviewKeyDown"
+        PreviewKeyUp="Self_PreviewKeyUp">
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition />
-            <RowDefinition />
+            <RowDefinition Height="5*" />
+            <RowDefinition Height="5*" />
+            <RowDefinition Height="40" />
         </Grid.RowDefinitions>
         <avalon:TextEditor Grid.Row="0" />
         <local:Terminal x:Name="Terminal" Grid.Row="1" />
+        <StackPanel Orientation="Horizontal">
+            <TextBlock x:Name="Status" Text="{Binding StatusText}" />
+            <TextBlock x:Name="Gesture" Text="{Binding GestureText}" />
+        </StackPanel>
     </Grid>
 </Window>

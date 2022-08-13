@@ -19,7 +19,7 @@ namespace CSharpSandbox.Wpf.Shells
             throw new NotImplementedException();
         }
 
-        public async Task Execute(string command)
+        public Task Execute(string command)
         {
             throw new NotImplementedException();
         }
