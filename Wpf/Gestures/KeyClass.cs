@@ -29,9 +29,21 @@ namespace CSharpSandbox.Wpf.Gestures
         public static readonly KeyClass MiscellaneousKeys = FromKeys(Key.Cancel, Key.Back, Key.Clear, Key.Pause, Key.Escape, Key.Select, Key.Print, Key.Execute, Key.PrintScreen, Key.Insert, Key.Delete, Key.Help, Key.Apps, Key.Sleep, Key.LaunchMail, Key.SelectMedia, Key.LaunchApplication1, Key.LaunchApplication2, Key.System, Key.Attn, Key.CrSel, Key.ExSel, Key.EraseEof, Key.Play, Key.Zoom, Key.NoName, Key.Pa1);
         public static readonly KeyClass UnaccountedKeys = AllKeys.Except(LetterKeys, FunctionKeys, ExtendedFunctionKeys, NumericKeys, ModifierKeys, LockKeys, NavigationKeys, WhitespaceKeys, InputModeKeys, ImeKeys, PunctuationKeys, BrowserKeys, MediaKeys, OemKeys, MiscellaneousKeys);
 
+        static KeyClass()
+        {
+            try
+            {
+                Debug.Assert(UnaccountedKeys.Count == 0);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.ToString());
+            }
+        }
+
         readonly HashSet<Key> _keys = new();
 
-        public int Count => throw new NotImplementedException();
+        public int Count => _keys.Count;
 
         private KeyClass(IEnumerable<Key> keys)
         {

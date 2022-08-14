@@ -19,13 +19,13 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="5*" />
             <RowDefinition Height="5*" />
-            <RowDefinition Height="40" />
+            <RowDefinition Height="20" />
         </Grid.RowDefinitions>
         <avalon:TextEditor Grid.Row="0" />
         <local:Terminal x:Name="Terminal" Grid.Row="1" />
-        <StackPanel Orientation="Horizontal">
-            <TextBlock x:Name="Status" Text="{Binding StatusText}" />
-            <TextBlock x:Name="Gesture" Text="{Binding GestureText}" />
+        <StackPanel Grid.Row="2" Orientation="Horizontal">
+            <TextBlock x:Name="Status" Text="{Binding StatusText}" Width="200" />
+            <TextBlock x:Name="Gesture" Text="{Binding GestureText}" Width="200" />
         </StackPanel>
     </Grid>
 </Window>

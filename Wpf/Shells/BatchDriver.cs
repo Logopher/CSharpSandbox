@@ -22,7 +22,6 @@ internal class BatchDriver : IShellDriver
     private Thread? _outputThread;
     private Thread? _errorThread;
     private Thread? _queueThread;
-    private string? _enteredCommand;
     private TaskCompletionSource _whenIdle = new();
     private readonly Dictionary<StreamReader, StringBuilder> _buffers = new();
     private readonly Regex _shellPromptPattern = new(@"^([A-Za-z]:(?:\\[A-Za-z0-9._ -]+)+\\?)>$");
@@ -67,7 +66,7 @@ internal class BatchDriver : IShellDriver
 
         _outputThread = new Thread(async () => await WriteQueue(_shellOutput, (text, time, isEnd) =>
         {
-            if (text == (_enteredCommand + Environment.NewLine))
+            if (text == Environment.NewLine)
             {
                 return null;
             }

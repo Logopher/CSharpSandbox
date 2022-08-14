@@ -1,7 +1,9 @@
-﻿using System;
+﻿using CSharpSandbox.Common;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,15 +14,9 @@ namespace CSharpSandbox.Wpf.Infrastructure
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual bool SetPropertyAndNotify<T>(ref T existingValue, T newValue, string? propertyName = null)
+        protected void NotifyPropertyChanged([CallerMemberName] string name = Mundane.EmptyString)
         {
-            if (EqualityComparer<T>.Default.Equals(existingValue, newValue)) return false;
-
-            existingValue = newValue;
-            var handler = PropertyChanged;
-            handler?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-            return true;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
     }
 }

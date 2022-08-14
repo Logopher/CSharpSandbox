@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common", "Common\Common.csp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mvc", "Mvc\Mvc.csproj", "{A4ED8F89-F340-4F69-A3E9-8D6715080AB0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Daq", "Daq\Daq.csproj", "{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Daq", "Daq\Daq.csproj", "{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

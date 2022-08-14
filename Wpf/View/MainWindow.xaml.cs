@@ -1,6 +1,7 @@
 ﻿using CSharpSandbox.Common;
 using CSharpSandbox.Wpf.Gestures;
 using CSharpSandbox.Wpf.Infrastructure;
+using CSharpSandbox.Wpf.ViewModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -12,6 +13,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Keyboard = CSharpSandbox.Wpf.Gestures.Keyboard;
 
 namespace CSharpSandbox.Wpf.View
@@ -19,9 +21,11 @@ namespace CSharpSandbox.Wpf.View
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window, INotifyPropertyChanged
+    public partial class MainWindow : Window
     {
-        static readonly TimeSpan GestureTimeout = TimeSpan.FromSeconds(10);
+        static readonly TimeSpan GestureTimeout = TimeSpan.FromSeconds(2);
+
+        readonly MainViewModel _viewModel;
 
         Dictionary<string, ICommand> _commands = new Dictionary<string, ICommand>();
 
@@ -29,35 +33,26 @@ namespace CSharpSandbox.Wpf.View
 
         InputGestureTree.Walker? _gestureWalker;
         DateTime? _gestureTime;
-        string _statusText = Mundane.EmptyString;
-        string _gestureText = Mundane.EmptyString;
+
+        DispatcherTimer _gestureTextTimer = new();
 
         public IServiceProvider Services { get; }
         public IReadOnlyDictionary<string, ICommand> Commands => _commands;
-        public string StatusText
-        {
-            get => _statusText;
-            set
-            {
-                _statusText = value;
-                NotifyPropertyChanged();
-            }
-        }
-        public string GestureText
-        {
-            get => _gestureText;
-            set
-            {
-                _gestureText = value;
-                NotifyPropertyChanged();
-            }
-        }
 
         public MainWindow(IServiceProvider services)
         {
             Services = services ?? throw new ArgumentNullException(nameof(services));
 
             InitializeComponent();
+
+            _viewModel = (MainViewModel)DataContext;
+
+            _gestureTextTimer.Interval = new TimeSpan(0, 0, 2);
+            _gestureTextTimer.Tick += new EventHandler((o, e) =>
+            {
+                _viewModel.GestureText = Mundane.EmptyString;
+                _gestureTextTimer.Stop();
+            });
 
             Task.Factory.StartNew(Terminal.Start);
         }
@@ -80,8 +75,6 @@ namespace CSharpSandbox.Wpf.View
             }
 
             _gestureTree.SetCommand(command, stimuli);
-
-            //InputBindings.Add(new InputBinding(command, gesture));
         }
 
         public void DefineCommand(string commandName, Action execute, Func<bool>? canExecute = null)
@@ -98,7 +91,32 @@ namespace CSharpSandbox.Wpf.View
         {
             try
             {
-                var key = e.Key == Key.System ? e.SystemKey : e.Key;
+                Debug.Assert((_gestureWalker == null) == (_gestureTime == null));
+
+                var key = e.Key;
+
+                var systemKey = e.Key == Key.System;
+                if (systemKey)
+                {
+                    key = e.SystemKey;
+                }
+
+                var deadKey = e.Key == Key.DeadCharProcessed;
+                if (deadKey)
+                {
+                    key = e.DeadCharProcessedKey;
+                }
+
+                var imeKey = e.Key == Key.ImeProcessed;
+                if (imeKey)
+                {
+                    key = e.ImeProcessedKey;
+                }
+
+                {
+                    var specialKeys = new[] { Key.System, Key.DeadCharProcessed, Key.ImeProcessed };
+                    Debug.Assert(!specialKeys.Contains(key));
+                }
 
                 if (KeyClass.ModifierKeys.Contains(key))
                 {
@@ -107,9 +125,7 @@ namespace CSharpSandbox.Wpf.View
 
                 var stim = new InputGestureTree.Stimulus(e.KeyboardDevice.Modifiers, key);
 
-                Debug.Assert((_gestureWalker == null) == (_gestureTime == null));
-
-                if (_gestureWalker == null)
+                if (_gestureWalker == null || _gestureTime + GestureTimeout <= DateTime.Now)
                 {
                     if (stim.ModifierKeys == ModifierKeys.None || stim.ModifierKeys == ModifierKeys.Shift)
                     {
@@ -118,17 +134,13 @@ namespace CSharpSandbox.Wpf.View
 
                     _gestureWalker = _gestureTree.Walk(stim, true);
                 }
-                else if (_gestureTime + GestureTimeout <= DateTime.Now)
-                {
-                    _gestureWalker = _gestureTree.Walk(stim, true);
-                }
                 else
                 {
                     _gestureWalker.Walk(stim);
                 }
 
-                GestureText = string.Join(" ", _gestureWalker.Breadcrumbs);
-                Debug.WriteLine(GestureText);
+                _viewModel.GestureText = string.Join(" ", _gestureWalker.Breadcrumbs);
+                _gestureTextTimer.Start();
 
                 _gestureTime = DateTime.Now;
 
@@ -137,6 +149,12 @@ namespace CSharpSandbox.Wpf.View
                     _gestureWalker.Command.Execute(null);
                     _gestureWalker = null;
                     _gestureTime = null;
+                }
+                else if (3 <= _gestureWalker.Breadcrumbs.Count)
+                {
+                    _gestureWalker = null;
+                    _gestureTime = null;
+                    _viewModel.GestureText = Mundane.EmptyString;
                 }
             }
             catch (Exception ex)
@@ -150,13 +168,6 @@ namespace CSharpSandbox.Wpf.View
         private void Self_PreviewKeyUp(object sender, KeyEventArgs e)
         {
 
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        private void NotifyPropertyChanged([CallerMemberName] string name = Mundane.EmptyString)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
     }
 }
