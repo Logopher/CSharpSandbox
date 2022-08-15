@@ -1,16 +1,9 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
+﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Threading;
-using System.Collections.Generic;
 using System.Text;
 using System.Collections.Concurrent;
-using System.Linq;
 
-namespace CSharpSandbox.Wpf.Shells;
+namespace CSharpSandbox.Shells;
 
 internal class BatchDriver : IShellDriver
 {

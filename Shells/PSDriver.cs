@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CSharpSandbox.Wpf.Shells
+namespace CSharpSandbox.Shells
 {
     internal class PSDriver : IShellDriver
     {
