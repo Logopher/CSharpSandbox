@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 
 namespace CSharpSandbox.Shells;
 
-internal class BatchDriver : IShellDriver
+public class BatchDriver : IShellDriver
 {
     private Action<string, bool>? _print;
     private Process? _shellProcess;
@@ -31,7 +31,7 @@ internal class BatchDriver : IShellDriver
 
     public string? CurrentDirectory { get; private set; }
 
-    public void Start(Action<string, bool> print)
+    public Task Start(Action<string, bool> print)
     {
         _print = print ?? throw new ArgumentNullException(nameof(print));
 
@@ -86,6 +86,8 @@ internal class BatchDriver : IShellDriver
         _queueThread.Start();
 
         HasStarted = true;
+
+        return Task.CompletedTask;
     }
 
     private void ReadQueue()
@@ -115,9 +117,11 @@ internal class BatchDriver : IShellDriver
         }
     }
 
-    public void End()
+    public Task End()
     {
         _shellProcess?.Kill();
+
+        return Task.CompletedTask;
     }
 
     public async Task Execute(string command)
@@ -200,7 +204,10 @@ internal class BatchDriver : IShellDriver
             {
                 var match = _shellPromptPattern.Match(lastLine);
                 lastIsPrompt = match?.Success ?? false;
-                if (!lastIsPrompt)
+                if (lastIsPrompt)
+                {
+                    CurrentDirectory = match!.Groups[1].Value;
+                }else
                 {
                     buffer.Append(lastLine);
                 }
@@ -250,9 +257,11 @@ internal class BatchDriver : IShellDriver
         }
     }
 
-    public void StopExecution()
+    public Task StopExecution()
     {
         _keyboardInterrupt.Cancel(true);
+
+        return Task.CompletedTask;
     }
 
     private void Print(string text, bool newline = true)

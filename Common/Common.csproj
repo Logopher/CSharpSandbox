@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>$(SolutionName).$(AssemblyName)</RootNamespace>
     <PackageId>$(SolutionName).$(AssemblyName)</PackageId>
+    <AssemblyName>$(SolutionName).$(MSBuildProjectName)</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,9 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NLog" Version="5.0.1" />
-    <PackageReference Include="NLog.Extensions.Logging" Version="5.0.1" />
-    <PackageReference Include="NLog.Schema" Version="5.0.1" />
+    <PackageReference Include="NLog" Version="5.0.2" />
+    <PackageReference Include="NLog.Extensions.Logging" Version="5.0.2" />
+    <PackageReference Include="NLog.Schema" Version="5.0.2" />
   </ItemGroup>
 
 </Project>

@@ -13,6 +13,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mvc", "Mvc\Mvc.csproj", "{A
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Daq", "Daq\Daq.csproj", "{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shells", "Shells\Shells.csproj", "{D20A1E34-DD89-4C90-8528-BA4CA43FE166}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6AD322E3-CB6C-42B8-A3FE-3AC4C1F5F98F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D20A1E34-DD89-4C90-8528-BA4CA43FE166}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D20A1E34-DD89-4C90-8528-BA4CA43FE166}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D20A1E34-DD89-4C90-8528-BA4CA43FE166}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D20A1E34-DD89-4C90-8528-BA4CA43FE166}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

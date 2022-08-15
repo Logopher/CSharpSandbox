@@ -1,17 +1,9 @@
-﻿using CSharpSandbox.Common;
-using ICSharpCode.AvalonEdit;
+﻿using ICSharpCode.AvalonEdit;
 using System;
-using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Input;
-using System.Text.RegularExpressions;
-using CSharpSandbox.Wpf.Shells;
+using CSharpSandbox.Shells;
 
 namespace CSharpSandbox.Wpf.View
 {
@@ -48,7 +40,7 @@ namespace CSharpSandbox.Wpf.View
 
         public Terminal()
         {
-            _shellDriver = new BatchDriver();
+            _shellDriver = new PSDriver();
 
             PreviewKeyDown += Self_PreviewKeyDown;
             PreviewTextInput += Self_PreviewTextInput;
@@ -167,7 +159,7 @@ namespace CSharpSandbox.Wpf.View
             {
                 case Key.Enter:
                     Debug.Assert(_enteredCommand != null);
-
+                    _commandStart = Text.Length;
                     _shellDriver.Execute(_enteredCommand);
                     break;
             }
