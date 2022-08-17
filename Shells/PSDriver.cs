@@ -1,8 +1,9 @@
-﻿using System.Globalization;
+﻿using Shells.PowerShell;
+using System.Globalization;
 using System.Management.Automation;
 using System.Management.Automation.Host;
 using System.Management.Automation.Runspaces;
-using System.Text.RegularExpressions;
+using System.Reflection;
 
 namespace CSharpSandbox.Shells;
 
@@ -26,9 +27,9 @@ public class PSDriver : PSHost, IShellDriver
 
     public override string Name { get; } = typeof(PSDriver).Name;
 
-    public override PSHostUserInterface UI => throw new NotImplementedException();
+    public override PSHostUserInterface UI { get; } = new UIProxy();
 
-    public override Version Version => throw new NotImplementedException();
+    public override Version Version { get; } = Assembly.GetExecutingAssembly().GetName().Version!;
 
     public Task Start(Action<string, bool> print)
     {
