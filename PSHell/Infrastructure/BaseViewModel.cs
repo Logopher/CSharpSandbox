@@ -2,7 +2,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace CSharpSandbox.Wpf.Infrastructure
+namespace CSharpSandbox.PSHell.Infrastructure
 {
     internal abstract class BaseViewModel : INotifyPropertyChanged
     {

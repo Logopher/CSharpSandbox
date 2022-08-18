@@ -415,8 +415,9 @@ namespace Shells.PowerShell
             {
                 if (fragments[1].Length > 0)
                 {
-                    result[0] = fragments[1][0].ToString().
-                    ToUpper(CultureInfo.CurrentCulture);
+                    result[0] = fragments[1][0]
+                        .ToString()
+                        .ToUpper(CultureInfo.CurrentCulture);
                 }
 
                 result[1] = (fragments[0] + fragments[1]).Trim();

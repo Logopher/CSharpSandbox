@@ -1,7 +1,7 @@
 ﻿using CSharpSandbox.Common;
-using CSharpSandbox.Wpf.Gestures;
-using CSharpSandbox.Wpf.Infrastructure;
-using CSharpSandbox.Wpf.ViewModel;
+using CSharpSandbox.PSHell.Gestures;
+using CSharpSandbox.PSHell.Infrastructure;
+using CSharpSandbox.PSHell.ViewModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -14,9 +14,9 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Keyboard = CSharpSandbox.Wpf.Gestures.Keyboard;
+using Keyboard = CSharpSandbox.PSHell.Gestures.Keyboard;
 
-namespace CSharpSandbox.Wpf.View
+namespace CSharpSandbox.PSHell.View
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -54,7 +54,7 @@ namespace CSharpSandbox.Wpf.View
                 _gestureTextTimer.Stop();
             });
 
-            //Task.Factory.StartNew(Terminal.Start);
+            Task.Factory.StartNew(Terminal.Start);
         }
 
         private void Self_Closing(object sender, CancelEventArgs e)
@@ -64,7 +64,7 @@ namespace CSharpSandbox.Wpf.View
 
         private void Self_Closed(object sender, EventArgs e)
         {
-            //Terminal.Exit();
+            Terminal.Exit();
         }
 
         public void SetKeyBinding(string commandName, params InputGestureTree.Stimulus[] stimuli)
