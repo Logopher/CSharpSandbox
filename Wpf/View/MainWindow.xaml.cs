@@ -54,7 +54,7 @@ namespace CSharpSandbox.Wpf.View
                 _gestureTextTimer.Stop();
             });
 
-            //Task.Factory.StartNew(Terminal.Start);
+            Task.Factory.StartNew(Terminal.Start);
         }
 
         private void Self_Closing(object sender, CancelEventArgs e)
@@ -64,7 +64,7 @@ namespace CSharpSandbox.Wpf.View
 
         private void Self_Closed(object sender, EventArgs e)
         {
-            //Terminal.Exit();
+            Terminal.Exit();
         }
 
         public void SetKeyBinding(string commandName, params InputGestureTree.Stimulus[] stimuli)

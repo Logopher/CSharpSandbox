@@ -12,20 +12,16 @@
         Closed="Self_Closed"
         PreviewKeyDown="Self_PreviewKeyDown"
         PreviewKeyUp="Self_PreviewKeyUp">
-    <!--
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>
-    -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="5*" />
             <RowDefinition Height="5*" />
             <RowDefinition Height="20" />
         </Grid.RowDefinitions>
-        <!--
         <avalon:TextEditor Grid.Row="0" />
-        -->
         <local:Terminal x:Name="Terminal" Grid.Row="1" />
         <StackPanel Grid.Row="2" Orientation="Horizontal">
             <TextBlock x:Name="Status" Text="{Binding StatusText}" Width="200" />

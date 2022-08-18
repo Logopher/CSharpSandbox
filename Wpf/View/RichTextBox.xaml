@@ -6,5 +6,5 @@
                   xmlns:forms="clr-namespace:CSharpSandbox.Wpf.View.WinForms"
                   mc:Ignorable="d" 
                   d:DesignHeight="450" d:DesignWidth="800">
-    <!--<forms:RichTextBox5 />-->
+    <forms:RichTextBox5 />
 </WindowsFormsHost>
