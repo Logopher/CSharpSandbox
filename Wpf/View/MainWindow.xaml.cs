@@ -64,7 +64,7 @@ namespace CSharpSandbox.Wpf.View
 
         private void Self_Closed(object sender, EventArgs e)
         {
-            Terminal.Exit();
+            Terminal.Exit(0);
         }
 
         public void SetKeyBinding(string commandName, params InputGestureTree.Stimulus[] stimuli)

@@ -1,6 +1,6 @@
 ﻿using System.Management.Automation.Host;
 
-namespace Shells.PowerShell
+namespace CSharpSandbox.Shells.PowerShell
 {
     internal class RawUIProxy : PSHostRawUserInterface
     {

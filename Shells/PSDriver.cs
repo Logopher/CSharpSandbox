@@ -1,62 +1,68 @@
-﻿using Shells.PowerShell;
+﻿using CSharpSandbox.Shells.PowerShell;
 using System.Globalization;
 using System.Management.Automation;
 using System.Management.Automation.Host;
 using System.Management.Automation.Runspaces;
 using System.Reflection;
+using PSHost = CSharpSandbox.Shells.PowerShell.PSHost;
 
 namespace CSharpSandbox.Shells;
 
-public class PSDriver : PSHost, IShellDriver
+public class PSDriver : ShellDriver, IPSHost
 {
-    private PowerShell? _powerShellCommand;
+    private readonly PSHost _host;
 
-    public bool HasStarted { get; private set; }
+    private System.Management.Automation.PowerShell? _powerShellCommand;
 
-    public bool HasExited { get; private set; }
+    public override bool HasStarted { get; protected set; }
 
-    public string FullPrompt { get; private set; }
+    public override bool HasExited { get; protected set; }
 
     public string? CurrentDirectory { get; private set; }
 
-    public override CultureInfo CurrentCulture { get; } = CultureInfo.CurrentCulture;
+    public CultureInfo CurrentCulture => _host.CurrentCulture;
 
-    public override CultureInfo CurrentUICulture { get; } = CultureInfo.CurrentUICulture;
+    public CultureInfo CurrentUICulture => _host.CurrentUICulture;
 
-    public override Guid InstanceId { get; } = Guid.NewGuid();
+    public Guid InstanceId => _host.InstanceId;
 
-    public override string Name { get; } = typeof(PSDriver).Name;
+    public string Name { get; } = nameof(PSDriver);
 
-    public override PSHostUserInterface UI { get; } = new UIProxy();
+    public PSHostUserInterface UI => _host.UI;
 
-    public override Version Version { get; } = Assembly.GetExecutingAssembly().GetName().Version!;
+    public Version Version => _host.Version;
 
-    public Task Start(Action<string, bool> print)
+    public PSDriver(ITerminal terminal, string promptTemplate)
+        : base(terminal, promptTemplate)
+    {
+        _host = new PSHost(Name, terminal);
+    }
+
+    public override Task Start(Action<string, bool> print)
     {
         HasStarted = true;
 
         Directory.SetCurrentDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
 
+        _host.Runspace.Open();
+
         return Task.CompletedTask;
     }
 
-    public Task Execute(string command)
+    public override Task Execute(string command)
     {
         try
         {
-            _powerShellCommand = PowerShell.Create();
+            _powerShellCommand = System.Management.Automation.PowerShell.Create();
             _powerShellCommand.AddScript(command);
-            _powerShellCommand.Runspace = RunspaceFactory.CreateRunspace(InitialSessionState.CreateDefault());
-            _powerShellCommand.Runspace.Open();
+            _powerShellCommand.Runspace = _host.Runspace;
 
             var results = _powerShellCommand.Invoke();
-
-            _powerShellCommand.Runspace.Close();
 
             // Display the results.
             foreach (PSObject result in results)
             {
-                Console.WriteLine(result);
+                Print(result);
             }
 
             // Display any non-terminating errors.
@@ -74,15 +80,17 @@ public class PSDriver : PSHost, IShellDriver
         return Task.CompletedTask;
     }
 
-    public Task StopExecution()
+    public override Task StopExecution()
     {
         _powerShellCommand?.Stop();
 
         return Task.CompletedTask;
     }
 
-    public Task End()
+    public override Task End()
     {
+        _host.Runspace.Close();
+
         _powerShellCommand?.Dispose();
         _powerShellCommand = null;
         HasExited = true;
@@ -91,27 +99,17 @@ public class PSDriver : PSHost, IShellDriver
         return Task.CompletedTask;
     }
 
-    public override void EnterNestedPrompt()
-    {
-        throw new NotImplementedException();
-    }
+    public void EnterNestedPrompt() => _host.EnterNestedPrompt();
 
-    public override void ExitNestedPrompt()
-    {
-        throw new NotImplementedException();
-    }
+    public void ExitNestedPrompt() => _host.ExitNestedPrompt();
 
-    public override void NotifyBeginApplication()
-    {
-        throw new NotImplementedException();
-    }
+    public void NotifyBeginApplication() => _host.NotifyBeginApplication();
 
-    public override void NotifyEndApplication()
-    {
-        throw new NotImplementedException();
-    }
+    public void NotifyEndApplication() => _host.NotifyEndApplication();
 
-    public override void SetShouldExit(int exitCode)
+    public void SetShouldExit(int exitCode) => _host.SetShouldExit(exitCode);
+
+    public override void Print(object? message = null, bool newline = true)
     {
         throw new NotImplementedException();
     }

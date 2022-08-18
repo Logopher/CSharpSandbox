@@ -4,15 +4,17 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Input;
 using CSharpSandbox.Shells;
+using System.Threading.Tasks;
 
 namespace CSharpSandbox.PSHell.View
 {
-    public class Terminal : TextEditor
+    public class Terminal : TextEditor, ITerminal
     {
         private readonly CancellationTokenSource _keyboardInterrupt = new();
         private readonly IShellDriver _shellDriver;
         private string? _enteredCommand;
         private int _commandStart = 0;
+        private TaskCompletionSource<string?> _readlineTCS = new();
 
         private int LastLineStart
         {
@@ -40,7 +42,7 @@ namespace CSharpSandbox.PSHell.View
 
         public Terminal()
         {
-            _shellDriver = new PSDriver();
+            _shellDriver = new PSDriver(this, "$(CurrentDirectory)> ");
 
             PreviewKeyDown += Self_PreviewKeyDown;
             PreviewTextInput += Self_PreviewTextInput;
@@ -165,9 +167,25 @@ namespace CSharpSandbox.PSHell.View
             }
         }
 
-        public void Exit()
+        public void Exit(int exitCode)
         {
             _shellDriver.End();
         }
+
+        public string? ReadLine()
+        {
+            if (Dispatcher.Thread == Thread.CurrentThread)
+            {
+                throw new InvalidOperationException();
+            }
+
+            var task = _readlineTCS.Task;
+            task.Wait();
+            return task.Result;
+        }
+
+        public void Write(string value) => Print(value, false);
+
+        public void WriteLine(string line) => Print(line);
     }
 }

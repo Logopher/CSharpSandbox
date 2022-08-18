@@ -9,7 +9,7 @@ using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Shells.PowerShell
+namespace CSharpSandbox.Shells.PowerShell
 {
     internal class UIProxy : PSHostUserInterface, IHostUISupportsMultipleChoiceSelection
     {
