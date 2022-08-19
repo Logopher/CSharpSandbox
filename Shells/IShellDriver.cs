@@ -5,6 +5,8 @@ public interface IShellDriver
     bool HasStarted { get; }
     bool HasExited { get; }
     string FullPrompt { get; }
+    bool IsExecuting { get; }
+    bool IsReadyForInput { get; }
 
     Task Start(Action<string, bool> print);
     Task Execute(string command);
@@ -19,6 +21,10 @@ public abstract class ShellDriver : IShellDriver
     public abstract bool HasStarted { get; protected set; }
 
     public abstract bool HasExited { get; protected set; }
+
+    public abstract bool IsExecuting { get; protected set; }
+
+    public abstract bool IsReadyForInput { get; protected set; }
 
     public string FullPrompt { get; } = "> ";
 
@@ -38,5 +44,15 @@ public abstract class ShellDriver : IShellDriver
 
     public abstract Task End();
 
-    public abstract void Print(object? text = null, bool newline = true);
+    public string? ReadLine()
+    {
+        IsReadyForInput = true;
+        var result = Terminal.ReadLine();
+        IsReadyForInput = false;
+        return result;
+    }
+
+    public void Write(object? value) => Terminal.Write(value);
+
+    public void WriteLine(object? value) => Terminal.WriteLine(value);
 }

@@ -36,7 +36,9 @@ namespace CSharpSandbox.Wpf.View
         private string LastLine => Text[LastLineStart..];
         private string Command => Text[_commandStart..];
 
-        private bool IsInputRestricted => !IsStarted || CaretOffset < Math.Min(_commandStart, Text.Length);
+        private bool IsInputRestricted => !IsStarted
+            || CaretOffset < Math.Min(_commandStart, Text.Length)
+            || !_shellDriver.IsReadyForInput;
 
         public bool IsStarted => _shellDriver.HasStarted;
 
@@ -54,9 +56,9 @@ namespace CSharpSandbox.Wpf.View
             _shellDriver.Start((text, newline) => Dispatcher.Invoke(() => Print(text, newline)));
         }
 
-        private void Print(string? text = null, bool newline = true)
+        private void Print(object? value = null, bool newline = true)
         {
-            text ??= string.Empty;
+            var text = value?.ToString() ?? string.Empty;
 
             var wasCaretAtEnd = CaretOffset == Text.Length;
 
@@ -157,6 +159,12 @@ namespace CSharpSandbox.Wpf.View
                 return;
             }
 
+            if (IsInputRestricted)
+            {
+                e.Handled = true;
+                return;
+            }
+
             switch (e.Key)
             {
                 case Key.Enter:
@@ -174,7 +182,7 @@ namespace CSharpSandbox.Wpf.View
 
         public string? ReadLine()
         {
-            if(Dispatcher.Thread == Thread.CurrentThread)
+            if (Dispatcher.Thread == Thread.CurrentThread)
             {
                 throw new InvalidOperationException();
             }
@@ -184,8 +192,14 @@ namespace CSharpSandbox.Wpf.View
             return task.Result;
         }
 
-        public void Write(string value) => Print(value, false);
+        public void Write(object? value)
+        {
+            Dispatcher.Invoke(() => Print(value, false));
+        }
 
-        public void WriteLine(string line) => Print(line);
+        public void WriteLine(object? line = null)
+        {
+            Dispatcher.Invoke(() => Print(line));
+        }
     }
 }

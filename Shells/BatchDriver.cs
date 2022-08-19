@@ -31,6 +31,8 @@ public class BatchDriver : IShellDriver
 
     public string? CurrentDirectory { get; private set; }
 
+    public bool IsReadyForInput { get; } = true;
+
     public Task Start(Action<string, bool> print)
     {
         _print = print ?? throw new ArgumentNullException(nameof(print));
@@ -207,7 +209,8 @@ public class BatchDriver : IShellDriver
                 if (lastIsPrompt)
                 {
                     CurrentDirectory = match!.Groups[1].Value;
-                }else
+                }
+                else
                 {
                     buffer.Append(lastLine);
                 }

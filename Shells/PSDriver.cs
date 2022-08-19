@@ -18,6 +18,8 @@ public class PSDriver : ShellDriver, IPSHost
 
     public override bool HasExited { get; protected set; }
 
+    public override bool IsReadyForInput { get; protected set; }
+
     public string? CurrentDirectory { get; private set; }
 
     public CultureInfo CurrentCulture => _host.CurrentCulture;
@@ -31,6 +33,8 @@ public class PSDriver : ShellDriver, IPSHost
     public PSHostUserInterface UI => _host.UI;
 
     public Version Version => _host.Version;
+
+    public override bool IsExecuting { get; protected set; }
 
     public PSDriver(ITerminal terminal, string promptTemplate)
         : base(terminal, promptTemplate)
@@ -46,6 +50,10 @@ public class PSDriver : ShellDriver, IPSHost
 
         _host.Runspace.Open();
 
+        Write(FullPrompt);
+
+        IsReadyForInput = true;
+
         return Task.CompletedTask;
     }
 
@@ -53,6 +61,9 @@ public class PSDriver : ShellDriver, IPSHost
     {
         try
         {
+            IsExecuting = true;
+            IsReadyForInput = false;
+
             _powerShellCommand = System.Management.Automation.PowerShell.Create();
             _powerShellCommand.AddScript(command);
             _powerShellCommand.Runspace = _host.Runspace;
@@ -62,7 +73,7 @@ public class PSDriver : ShellDriver, IPSHost
             // Display the results.
             foreach (PSObject result in results)
             {
-                Print(result);
+                WriteLine(result);
             }
 
             // Display any non-terminating errors.
@@ -70,6 +81,11 @@ public class PSDriver : ShellDriver, IPSHost
             {
                 Console.WriteLine("PowerShell Error: {0}", error);
             }
+
+            Write(FullPrompt);
+
+            IsExecuting = false;
+            IsReadyForInput = true;
         }
         catch (RuntimeException ex)
         {
@@ -108,9 +124,4 @@ public class PSDriver : ShellDriver, IPSHost
     public void NotifyEndApplication() => _host.NotifyEndApplication();
 
     public void SetShouldExit(int exitCode) => _host.SetShouldExit(exitCode);
-
-    public override void Print(object? message = null, bool newline = true)
-    {
-        throw new NotImplementedException();
-    }
 }

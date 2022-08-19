@@ -10,8 +10,8 @@ namespace CSharpSandbox.Shells.PowerShell
         /// </summary>
         public override ConsoleColor BackgroundColor
         {
-            get => Console.BackgroundColor;
-            set => Console.BackgroundColor = value;
+            get => throw new NotImplementedException("The method or operation is not implemented.");
+            set => throw new NotImplementedException("The method or operation is not implemented.");
         }
 
         /// <summary>
@@ -20,8 +20,8 @@ namespace CSharpSandbox.Shells.PowerShell
         /// </summary>
         public override Size BufferSize
         {
-            get => new(Console.BufferWidth, Console.BufferHeight);
-            set => Console.SetBufferSize(value.Width, value.Height);
+            get => throw new NotImplementedException("The method or operation is not implemented.");
+            set => throw new NotImplementedException("The method or operation is not implemented.");
         }
 
         /// <summary>
@@ -41,8 +41,8 @@ namespace CSharpSandbox.Shells.PowerShell
         /// </summary>
         public override int CursorSize
         {
-            get => Console.CursorSize;
-            set => Console.CursorSize = value;
+            get => throw new NotImplementedException("The method or operation is not implemented.");
+            set => throw new NotImplementedException("The method or operation is not implemented.");
         }
 
         /// <summary>
@@ -51,8 +51,8 @@ namespace CSharpSandbox.Shells.PowerShell
         /// </summary>
         public override ConsoleColor ForegroundColor
         {
-            get => Console.ForegroundColor;
-            set => Console.ForegroundColor = value;
+            get => throw new NotImplementedException("The method or operation is not implemented.");
+            set => throw new NotImplementedException("The method or operation is not implemented.");
         }
 
         /// <summary>
@@ -66,14 +66,14 @@ namespace CSharpSandbox.Shells.PowerShell
         /// Console.LargestWindowWidth and Console.LargestWindowHeight
         /// properties.
         /// </summary>
-        public override Size MaxPhysicalWindowSize => new(Console.LargestWindowWidth, Console.LargestWindowHeight);
+        public override Size MaxPhysicalWindowSize => throw new NotImplementedException("The method or operation is not implemented.");
 
         /// <summary>
         /// Gets the maximum window size adapted from the
         /// Console.LargestWindowWidth and console.LargestWindowHeight
         /// properties.
         /// </summary>
-        public override Size MaxWindowSize => new(Console.LargestWindowWidth, Console.LargestWindowHeight);
+        public override Size MaxWindowSize => throw new NotImplementedException("The method or operation is not implemented.");
 
         /// <summary>
         /// Gets or sets the window position adapted from the Console window position
@@ -81,8 +81,8 @@ namespace CSharpSandbox.Shells.PowerShell
         /// </summary>
         public override Coordinates WindowPosition
         {
-            get => new(Console.WindowLeft, Console.WindowTop);
-            set => Console.SetWindowPosition(value.X, value.Y);
+            get => throw new NotImplementedException("The method or operation is not implemented.");
+            set => throw new NotImplementedException("The method or operation is not implemented.");
         }
 
         /// <summary>
@@ -91,8 +91,8 @@ namespace CSharpSandbox.Shells.PowerShell
         /// </summary>
         public override Size WindowSize
         {
-            get => new(Console.WindowWidth, Console.WindowHeight);
-            set => Console.SetWindowSize(value.Width, value.Height);
+            get => throw new NotImplementedException("The method or operation is not implemented.");
+            set => throw new NotImplementedException("The method or operation is not implemented.");
         }
 
         /// <summary>
@@ -101,8 +101,8 @@ namespace CSharpSandbox.Shells.PowerShell
         /// </summary>
         public override string WindowTitle
         {
-            get => Console.Title;
-            set => Console.Title = value;
+            get => throw new NotImplementedException("The method or operation is not implemented.");
+            set => throw new NotImplementedException("The method or operation is not implemented.");
         }
 
         /// <summary>

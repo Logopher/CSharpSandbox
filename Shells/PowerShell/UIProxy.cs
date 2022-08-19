@@ -17,6 +17,12 @@ namespace CSharpSandbox.Shells.PowerShell
         /// A reference to the PSRawUserInterface implementation.
         /// </summary>
         private readonly RawUIProxy _rawUI = new();
+        private ITerminal _terminal;
+
+        public UIProxy(ITerminal terminal)
+        {
+            _terminal = terminal;
+        }
 
         /// <summary>
         /// Gets an instance of the PSRawUserInterface class for this host
@@ -277,10 +283,7 @@ namespace CSharpSandbox.Shells.PowerShell
         /// (carriage return) is encountered.
         /// </summary>
         /// <returns>The characters that are entered by the user.</returns>
-        public override string? ReadLine()
-        {
-            return Console.ReadLine();
-        }
+        public override string? ReadLine() => _terminal.ReadLine();
 
         /// <summary>
         /// Reads characters entered by the user until a newline (carriage return)
@@ -298,10 +301,7 @@ namespace CSharpSandbox.Shells.PowerShell
         /// Writes characters to the output display of the host.
         /// </summary>
         /// <param name="value">The characters to be written.</param>
-        public override void Write(string value)
-        {
-            Console.Write(value);
-        }
+        public override void Write(string value) => _terminal.Write(value);
 
         /// <summary>
         /// Writes characters to the output display of the host with possible
@@ -344,29 +344,20 @@ namespace CSharpSandbox.Shells.PowerShell
         /// Writes an error message to the output display of the host.
         /// </summary>
         /// <param name="value">The error message that is displayed.</param>
-        public override void WriteErrorLine(string value)
-        {
-            WriteLine(value);
-        }
+        public override void WriteErrorLine(string value) => WriteLine(value);
 
         /// <summary>
         /// Writes a newline character (carriage return)
         /// to the output display of the host.
         /// </summary>
-        public override void WriteLine()
-        {
-            Console.WriteLine();
-        }
+        public override void WriteLine() => _terminal.WriteLine();
 
         /// <summary>
         /// Writes a line of characters to the output display of the host
         /// and appends a newline character(carriage return).
         /// </summary>
         /// <param name="value">The line to be written.</param>
-        public override void WriteLine(string value)
-        {
-            Console.WriteLine(value);
-        }
+        public override void WriteLine(string value) => _terminal.WriteLine(value);
 
         /// <summary>
         /// Writes a progress report to the output display of the host.
@@ -375,7 +366,7 @@ namespace CSharpSandbox.Shells.PowerShell
         /// <param name="record">A ProgressReport object.</param>
         public override void WriteProgress(long sourceId, ProgressRecord record)
         {
-
+            throw new NotImplementedException("The method or operation is not implemented.");
         }
 
         /// <summary>

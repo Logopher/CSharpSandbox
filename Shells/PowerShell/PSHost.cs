@@ -17,7 +17,7 @@ namespace CSharpSandbox.Shells.PowerShell
 
         public override string Name { get; }
 
-        public override PSHostUserInterface UI { get; } = new UIProxy();
+        public override PSHostUserInterface UI { get; }
 
         public override Version Version { get; } = Assembly.GetExecutingAssembly().GetName().Version ?? throw new Exception();
 
@@ -25,6 +25,7 @@ namespace CSharpSandbox.Shells.PowerShell
 
         public PSHost(string name, ITerminal terminal)
         {
+            UI = new UIProxy(terminal);
             Name = name;
             _terminal = terminal;
             Runspace = RunspaceFactory.CreateRunspace(this, InitialSessionState.CreateDefault());

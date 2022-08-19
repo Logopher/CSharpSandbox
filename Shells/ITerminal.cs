@@ -10,9 +10,9 @@ public interface ITerminal
 {
     string? ReadLine();
 
-    void Write(string value);
+    void Write(object? value);
 
-    void WriteLine(string line);
+    void WriteLine(object? line = null);
 
     void Exit(int exitCode);
 }
