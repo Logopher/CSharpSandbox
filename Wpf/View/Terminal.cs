@@ -168,9 +168,19 @@ namespace CSharpSandbox.Wpf.View
             switch (e.Key)
             {
                 case Key.Enter:
-                    Debug.Assert(_enteredCommand != null);
-                    _commandStart = Text.Length;
-                    _shellDriver.Execute(_enteredCommand);
+                    if (_shellDriver.IsReadyForInput)
+                    {
+                        Debug.Assert(_enteredCommand != null);
+                        _commandStart = Text.Length;
+                        if (_shellDriver.IsExecuting)
+                        {
+                            _readlineTCS.SetResult(_enteredCommand);
+                        }
+                        else
+                        {
+                            _shellDriver.Execute(_enteredCommand);
+                        }
+                    }
                     break;
             }
         }
