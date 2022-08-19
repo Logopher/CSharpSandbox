@@ -4,6 +4,13 @@ namespace CSharpSandbox.Shells.PowerShell
 {
     internal class RawUIProxy : PSHostRawUserInterface
     {
+        private ITerminal _terminal;
+
+        public RawUIProxy(ITerminal terminal)
+        {
+            _terminal = terminal;
+        }
+
         /// <summary>
         /// Gets or sets the background color of text to be written.
         /// This maps to the corresponding Console.Background property.

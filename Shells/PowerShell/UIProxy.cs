@@ -13,22 +13,19 @@ namespace CSharpSandbox.Shells.PowerShell
 {
     internal class UIProxy : PSHostUserInterface, IHostUISupportsMultipleChoiceSelection
     {
-        /// <summary>
-        /// A reference to the PSRawUserInterface implementation.
-        /// </summary>
-        private readonly RawUIProxy _rawUI = new();
         private ITerminal _terminal;
 
         public UIProxy(ITerminal terminal)
         {
             _terminal = terminal;
+            RawUI = new RawUIProxy(terminal);
         }
 
         /// <summary>
         /// Gets an instance of the PSRawUserInterface class for this host
         /// application.
         /// </summary>
-        public override PSHostRawUserInterface RawUI => _rawUI;
+        public override PSHostRawUserInterface RawUI { get; }
 
         /// <summary>
         /// Prompts the user for input.
