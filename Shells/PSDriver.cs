@@ -8,7 +8,7 @@ using PSHost = CSharpSandbox.Shells.PowerShell.PSHost;
 
 namespace CSharpSandbox.Shells;
 
-public class PSDriver : ShellDriver, IPSHost
+public sealed class PSDriver : ShellDriver, IPSHost
 {
     private readonly PSHost _host;
 
@@ -42,7 +42,7 @@ public class PSDriver : ShellDriver, IPSHost
         _host = new PSHost(Name, terminal);
     }
 
-    public override Task Start(Action<string, bool> print)
+    public override Task Start()
     {
         HasStarted = true;
 

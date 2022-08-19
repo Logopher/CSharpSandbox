@@ -1,20 +1,15 @@
 ﻿using CSharpSandbox.Common;
 using CSharpSandbox.Wpf.Gestures;
-using CSharpSandbox.Wpf.Infrastructure;
 using CSharpSandbox.Wpf.ViewModel;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Keyboard = CSharpSandbox.Wpf.Gestures.Keyboard;
 
 namespace CSharpSandbox.Wpf.View
 {
@@ -47,7 +42,7 @@ namespace CSharpSandbox.Wpf.View
 
             _viewModel = (MainViewModel)DataContext;
 
-            _gestureTextTimer.Interval = new TimeSpan(0, 0, 2);
+            _gestureTextTimer.Interval = GestureTimeout;
             _gestureTextTimer.Tick += new EventHandler((o, e) =>
             {
                 _viewModel.GestureText = Mundane.EmptyString;

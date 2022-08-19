@@ -5,9 +5,8 @@ using System.Collections.Concurrent;
 
 namespace CSharpSandbox.Shells;
 
-public class BatchDriver : IShellDriver
+public sealed class BatchDriver : ShellDriver
 {
-    private Action<string, bool>? _print;
     private Process? _shellProcess;
     private StreamReader? _shellOutput;
     private StreamWriter? _shellInput;
@@ -21,22 +20,27 @@ public class BatchDriver : IShellDriver
     private readonly CancellationTokenSource _keyboardInterrupt = new();
     private readonly BlockingCollection<Line> _queue = new();
 
-    public bool HasStarted { get; private set; }
+    public BatchDriver(ITerminal terminal, string promptTemplate)
+        : base(terminal, promptTemplate)
+    {
+    }
 
-    public bool IsExecuting { get; private set; }
+    public override bool HasStarted { get; protected set; }
 
-    public bool HasExited => _shellProcess?.HasExited ?? throw new Exception();
+    public override bool IsExecuting { get; protected set; }
 
-    public string FullPrompt => $"{CurrentDirectory}>";
+    public override bool HasExited
+    {
+        get => _shellProcess?.HasExited ?? HasStarted;
+        protected set => throw new NotImplementedException();
+    }
 
     public string? CurrentDirectory { get; private set; }
 
-    public bool IsReadyForInput { get; } = true;
+    public override bool IsReadyForInput { get; protected set; } = true;
 
-    public Task Start(Action<string, bool> print)
+    public override Task Start()
     {
-        _print = print ?? throw new ArgumentNullException(nameof(print));
-
         _shellProcess = new Process
         {
             StartInfo = new ProcessStartInfo
@@ -119,14 +123,14 @@ public class BatchDriver : IShellDriver
         }
     }
 
-    public Task End()
+    public override Task End()
     {
         _shellProcess?.Kill();
 
         return Task.CompletedTask;
     }
 
-    public async Task Execute(string command)
+    public override async Task Execute(string command)
     {
         if (_shellOutput == null || _shellError == null || _shellInput == null)
         {
@@ -260,7 +264,7 @@ public class BatchDriver : IShellDriver
         }
     }
 
-    public Task StopExecution()
+    public override Task StopExecution()
     {
         _keyboardInterrupt.Cancel(true);
 
@@ -269,11 +273,13 @@ public class BatchDriver : IShellDriver
 
     private void Print(string text, bool newline = true)
     {
-        if (_print == null)
+        if(newline)
         {
-            throw new InvalidOperationException($"{nameof(_print)} is null.");
+            WriteLine(text);
         }
-
-        _print(text, newline);
+        else
+        {
+            Write(text);
+        }
     }
 }

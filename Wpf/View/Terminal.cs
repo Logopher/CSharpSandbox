@@ -51,10 +51,7 @@ namespace CSharpSandbox.Wpf.View
             PreviewKeyUp += Self_PreviewKeyUp;
         }
 
-        public void Start()
-        {
-            _shellDriver.Start((text, newline) => Dispatcher.Invoke(() => Print(text, newline)));
-        }
+        public void Start() => _shellDriver.Start();
 
         private void Print(object? value = null, bool newline = true)
         {
@@ -149,6 +146,11 @@ namespace CSharpSandbox.Wpf.View
                 return;
             }
 
+            if (IsInputRestricted)
+            {
+                e.Handled = true;
+                return;
+            }
         }
 
         private void Self_PreviewKeyUp(object sender, KeyEventArgs e)

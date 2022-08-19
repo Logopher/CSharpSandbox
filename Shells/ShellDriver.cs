@@ -1,22 +1,8 @@
 ﻿namespace CSharpSandbox.Shells;
 
-public interface IShellDriver
+public abstract class ShellDriver
 {
-    bool HasStarted { get; }
-    bool HasExited { get; }
-    string FullPrompt { get; }
-    bool IsExecuting { get; }
-    bool IsReadyForInput { get; }
-
-    Task Start(Action<string, bool> print);
-    Task Execute(string command);
-    Task StopExecution();
-    Task End();
-}
-
-public abstract class ShellDriver : IShellDriver
-{
-    protected readonly ITerminal Terminal;
+    protected ITerminal Terminal { get; }
 
     public abstract bool HasStarted { get; protected set; }
 
@@ -36,7 +22,7 @@ public abstract class ShellDriver : IShellDriver
         PromptTemplate = promptTemplate ?? throw new ArgumentNullException(nameof(promptTemplate));
     }
 
-    public abstract Task Start(Action<string, bool> print);
+    public abstract Task Start();
 
     public abstract Task Execute(string command);
 
