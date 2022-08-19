@@ -10,7 +10,6 @@ namespace CSharpSandbox.Wpf.View
 {
     public class Terminal : TextEditor, ITerminal
     {
-        private readonly CancellationTokenSource _keyboardInterrupt = new();
         private readonly ShellDriver _shellDriver;
         private string? _enteredCommand;
         private int _commandStart = 0;
@@ -187,10 +186,7 @@ namespace CSharpSandbox.Wpf.View
             }
         }
 
-        public void Exit(int exitCode)
-        {
-            _shellDriver.End();
-        }
+        public void Exit(int exitCode) => _shellDriver.End();
 
         public string? ReadLine()
         {
@@ -205,14 +201,8 @@ namespace CSharpSandbox.Wpf.View
             return task.Result;
         }
 
-        public void Write(object? value)
-        {
-            Dispatcher.Invoke(() => Print(value, false));
-        }
+        public void Write(object? value) => Dispatcher.Invoke(() => Print(value, false));
 
-        public void WriteLine(object? line = null)
-        {
-            Dispatcher.Invoke(() => Print(line));
-        }
+        public void WriteLine(object? line = null) => Dispatcher.Invoke(() => Print(line));
     }
 }
