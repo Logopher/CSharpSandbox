@@ -11,7 +11,7 @@ namespace CSharpSandbox.Wpf.View
     public class Terminal : TextEditor, ITerminal
     {
         private readonly CancellationTokenSource _keyboardInterrupt = new();
-        private readonly IShellDriver _shellDriver;
+        private readonly ShellDriver _shellDriver;
         private string? _enteredCommand;
         private int _commandStart = 0;
         private TaskCompletionSource<string?> _readlineTCS = new();
@@ -196,11 +196,12 @@ namespace CSharpSandbox.Wpf.View
         {
             if (Dispatcher.Thread == Thread.CurrentThread)
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException("Calling ReadLine on the UI thread would cause a deadlock.");
             }
 
             var task = _readlineTCS.Task;
             task.Wait();
+            _readlineTCS = new();
             return task.Result;
         }
 
