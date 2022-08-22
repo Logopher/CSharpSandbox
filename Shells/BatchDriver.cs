@@ -29,6 +29,8 @@ public sealed class BatchDriver : ShellDriver
 
     public override bool IsExecuting { get; protected set; }
 
+    public override bool IsInSameProcess { get; protected set; } = false;
+
     public override bool HasExited
     {
         get => _shellProcess?.HasExited ?? HasStarted;
@@ -137,6 +139,7 @@ public sealed class BatchDriver : ShellDriver
             throw new InvalidOperationException();
         }
 
+        var wasExecuting = IsExecuting;
         IsExecuting = true;
 
         _whenIdle = new();
@@ -145,7 +148,7 @@ public sealed class BatchDriver : ShellDriver
 
         await _whenIdle.Task;
 
-        IsExecuting = false;
+        IsExecuting = wasExecuting;
     }
 
     private async Task WriteQueue(StreamReader reader, Func<string, DateTime, bool, Line?> cstor)

@@ -173,7 +173,7 @@ namespace CSharpSandbox.Wpf.View
                     {
                         Debug.Assert(_enteredCommand != null);
                         _commandStart = Text.Length;
-                        if (_shellDriver.IsExecuting)
+                        if (_shellDriver.IsInSameProcess && _shellDriver.IsExecuting)
                         {
                             _readlineTCS.SetResult(_enteredCommand);
                         }

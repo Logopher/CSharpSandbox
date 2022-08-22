@@ -12,6 +12,8 @@ public abstract class ShellDriver
 
     public abstract bool IsReadyForInput { get; protected set; }
 
+    public abstract bool IsInSameProcess { get; protected set; }
+
     public string FullPrompt { get; } = "> ";
 
     public string PromptTemplate { get; }

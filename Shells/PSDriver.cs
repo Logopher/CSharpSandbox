@@ -1,4 +1,5 @@
-﻿using CSharpSandbox.Shells.PowerShell;
+﻿using CSharpSandbox.Common;
+using CSharpSandbox.Shells.PowerShell;
 using System.Globalization;
 using System.Management.Automation;
 using System.Management.Automation.Host;
@@ -19,6 +20,14 @@ public sealed class PSDriver : ShellDriver, IPSHost
     public override bool HasExited { get; protected set; }
 
     public override bool IsReadyForInput { get; protected set; }
+
+    public override bool IsInSameProcess { get; protected set; } = true;
+
+    private readonly MemoryStream _input = new();
+
+    private readonly MemoryStream _output = new();
+
+    private readonly MemoryStream _error = new();
 
     public string? CurrentDirectory { get; private set; }
 
@@ -61,31 +70,86 @@ public sealed class PSDriver : ShellDriver, IPSHost
     {
         try
         {
+            if (IsExecuting)
+            {
+                var trueInput = Console.In;
+                Console.SetIn(new StreamReader(_input));
+                var inputWriter = new StreamWriter(_input);
+
+                inputWriter.WriteLine(command);
+
+                Console.SetIn(trueInput);
+
+                return Task.CompletedTask;
+            }
+
             IsExecuting = true;
-            IsReadyForInput = false;
+            //IsReadyForInput = false;
 
-            _powerShellCommand = System.Management.Automation.PowerShell.Create();
-            _powerShellCommand.AddScript(command);
-            _powerShellCommand.Runspace = _host.Runspace;
+            var trueOutput = Console.Out;
+            var trueError = Console.Error;
 
-            var results = _powerShellCommand.Invoke();
+            Console.SetOut(new StreamWriter(_output));
+            Console.SetError(new StreamWriter(_error));
 
-            // Display the results.
-            foreach (PSObject result in results)
+            var outputReader = new StreamReader(_output);
+            var errorReader = new StreamReader(_error);
+
+            var outputThread = new Thread(async () =>
             {
-                WriteLine(result);
-            }
+                while (!outputReader.EndOfStream)
+                {
+                    foreach (var line in Streams.ReadLines(outputReader))
+                    {
+                        WriteLine(line.Text);
+                    }
 
-            // Display any non-terminating errors.
-            foreach (ErrorRecord error in _powerShellCommand.Streams.Error)
+                    await Task.Delay(25);
+                }
+            });
+
+            var errorThread = new Thread(async () =>
             {
-                Console.WriteLine("PowerShell Error: {0}", error);
-            }
+                while (!errorReader.EndOfStream)
+                {
+                    foreach (var line in Streams.ReadLines(errorReader))
+                    {
+                        WriteLine(line.Text);
+                    }
 
-            Write(FullPrompt);
+                    await Task.Delay(25);
+                }
+            });
 
-            IsExecuting = false;
-            IsReadyForInput = true;
+            var executionThread = new Thread(() =>
+            {
+                _powerShellCommand = System.Management.Automation.PowerShell.Create();
+                _powerShellCommand.AddScript(command);
+                _powerShellCommand.Runspace = _host.Runspace;
+
+                var results = _powerShellCommand.Invoke();
+
+                // Display the results.
+                foreach (PSObject result in results)
+                {
+                    WriteLine(result);
+                }
+
+                // Display any non-terminating errors.
+                foreach (ErrorRecord error in _powerShellCommand.Streams.Error)
+                {
+                    WriteLine($"PowerShell Error: {error}");
+                }
+
+                Write(FullPrompt);
+
+                IsExecuting = false;
+                IsReadyForInput = true;
+
+                Console.SetOut(trueOutput);
+                Console.SetError(trueError);
+            });
+            executionThread.Start();
         }
         catch (RuntimeException ex)
         {
