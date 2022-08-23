@@ -16,9 +16,9 @@
             <RowDefinition Height="1*" />
         </Grid.RowDefinitions>
         <TextBox Background="Transparent"
-             BorderThickness="0"
-             IsReadOnly="True"
-             TextWrapping="Wrap">
+                 BorderThickness="0"
+                 IsReadOnly="True"
+                 TextWrapping="Wrap">
             <TextBox.Text>
                 <MultiBinding StringFormat="{}{0} {1}">
                     <Binding Path="AppName" Mode="OneWay"/>

@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -19,13 +20,13 @@ namespace CSharpSandbox.Wpf.View
     /// </summary>
     public partial class MainWindow : Window
     {
-        public RelayCommand AboutCommand { get; }
         public IReadOnlyDictionary<string, ICommand> Commands => _commands;
+        public IReadOnlyList<MenuItem> MenuItems => _menuItems;
 
         static readonly TimeSpan GestureTimeout = TimeSpan.FromSeconds(2);
 
         readonly Dictionary<string, ICommand> _commands = new();
-
+        readonly List<MenuItem> _menuItems;
 
         // TODO: inject
         readonly DispatcherTimer _gestureTextTimer = new();
@@ -44,9 +45,21 @@ namespace CSharpSandbox.Wpf.View
             AboutWindow aboutWindow,
             InputGestureTree gestureTree)
         {
-            AboutCommand = new RelayCommand(AboutCommand_Invoked);
+            _commands.Add("About", new RelayCommand(AboutCommand_Invoked));
 
-            _commands.Add("About", AboutCommand);
+            _menuItems = new List<MenuItem>
+            {
+                new MenuItem{ Header = "_File" },
+                new MenuItem{ Header = "_Edit" },
+                new MenuItem{ Header = "_View" },
+                new MenuItem{ Header = "_Tools" },
+                new MenuItem{ Header = "_Help",
+                    ItemsSource = new MenuItem[]
+                    {
+                        new MenuItem{ Header = "_About", Command = Commands["About"] },
+                    },
+                },
+            };
 
             _aboutWindow = aboutWindow;
 

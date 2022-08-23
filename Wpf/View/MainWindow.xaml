@@ -15,19 +15,7 @@
     </Window.Resources>
     <DockPanel LastChildFill="True">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
-            <Menu x:Name="MenuBar">
-                <MenuItem Header="_File" />
-                <MenuItem Header="_Edit" />
-                <MenuItem Header="_View" />
-                <MenuItem Header="_Tools" />
-                <MenuItem Header="_Help">
-                    <MenuItem Header="_About"
-                              Command="{Binding Commands,
-                                    ElementName=Self,
-                                    Converter={StaticResource CommandResolutionConverter},
-                                    ConverterParameter=About}" />
-                </MenuItem>
-            </Menu>
+            <Menu x:Name="MenuBar" ItemsSource="{Binding MenuItems, ElementName=Self}" />
         </StackPanel>
         <Grid>
             <Grid.RowDefinitions>
