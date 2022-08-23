@@ -97,7 +97,7 @@ public sealed class PSDriver : ShellDriver, IPSHost
 
             var outputThread = new Thread(async () =>
             {
-                while (!outputReader.EndOfStream)
+                while (!outputReader.EndOfStream && !HasExited)
                 {
                     foreach (var line in Streams.ReadLines(outputReader))
                     {
@@ -110,7 +110,7 @@ public sealed class PSDriver : ShellDriver, IPSHost
 
             var errorThread = new Thread(async () =>
             {
-                while (!errorReader.EndOfStream)
+                while (!errorReader.EndOfStream && !HasExited)
                 {
                     foreach (var line in Streams.ReadLines(errorReader))
                     {

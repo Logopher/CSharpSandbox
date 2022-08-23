@@ -7,25 +7,40 @@
         xmlns:local="clr-namespace:CSharpSandbox.Wpf.View"
         xmlns:vm="clr-namespace:CSharpSandbox.Wpf.ViewModel"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800"
-        Closing="Self_Closing"
-        Closed="Self_Closed"
-        PreviewKeyDown="Self_PreviewKeyDown"
-        PreviewKeyUp="Self_PreviewKeyUp">
-    <Window.DataContext>
-        <vm:MainViewModel />
-    </Window.DataContext>
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="5*" />
-            <RowDefinition Height="5*" />
-            <RowDefinition Height="20" />
-        </Grid.RowDefinitions>
-        <avalon:TextEditor Grid.Row="0" />
-        <local:Terminal x:Name="Terminal" Grid.Row="1" />
-        <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBlock x:Name="Status" Text="{Binding StatusText}" Width="200" />
-            <TextBlock x:Name="Gesture" Text="{Binding GestureText}" Width="200" />
+        x:Name="Self"
+        Title="CSharpSandbox.Wpf"
+        Height="450" Width="800">
+    <Window.Resources>
+        <ResourceDictionary Source="../Resources/Common.xaml" />
+    </Window.Resources>
+    <DockPanel LastChildFill="True">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+            <Menu x:Name="MenuBar">
+                <MenuItem Header="_File" />
+                <MenuItem Header="_Edit" />
+                <MenuItem Header="_View" />
+                <MenuItem Header="_Tools" />
+                <MenuItem Header="_Help">
+                    <MenuItem Header="_About"
+                              Command="{Binding Commands,
+                                    ElementName=Self,
+                                    Converter={StaticResource CommandResolutionConverter},
+                                    ConverterParameter=About}" />
+                </MenuItem>
+            </Menu>
         </StackPanel>
-    </Grid>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="5*" />
+                <RowDefinition Height="5*" />
+                <RowDefinition Height="20" />
+            </Grid.RowDefinitions>
+            <avalon:TextEditor Grid.Row="0" />
+            <local:Terminal x:Name="Terminal" Grid.Row="1" />
+            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                <TextBlock x:Name="Status" Text="{Binding StatusText}" Width="200" />
+                <TextBlock x:Name="Gesture" Text="{Binding GestureText}" Width="200" />
+            </StackPanel>
+        </Grid>
+    </DockPanel>
 </Window>

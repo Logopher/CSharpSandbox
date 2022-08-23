@@ -6,6 +6,9 @@ using NLog.Extensions.Logging;
 using System;
 using CSharpSandbox.Wpf.View;
 using System.IO;
+using CSharpSandbox.Wpf.ViewModel;
+using CSharpSandbox.Wpf.Gestures;
+using System.Windows;
 
 namespace CSharpSandbox.Wpf;
 
@@ -21,18 +24,28 @@ public class Program
         return Host.CreateDefaultBuilder(args)
             .ConfigureServices((_, services) =>
             {
-                services.AddSingleton<App>()
-                    .AddTransient<IDaq, Daq>()
-                    .AddLogging(loggingBuilder =>
-                    {
-                        loggingBuilder.SetMinimumLevel(LogLevel.Trace);
-                        loggingBuilder.AddNLog(config);
-                    });
+                services.AddSingleton<App>();
+                services.AddTransient<IDaq, Daq>();
+                services.AddLogging(loggingBuilder =>
+                {
+                    loggingBuilder.SetMinimumLevel(LogLevel.Trace);
+                    loggingBuilder.AddNLog(config);
+                });
+
+                services.AddSingleton<MainWindow>();
+                services.AddSingleton<AboutWindow>();
+
+                services.AddSingleton<MainViewModel>();
+                services.AddSingleton<AboutViewModel>();
+
+                services.AddSingleton<InputGestureTree>();
             });
     }
 
     public static int Main(string[] args)
     {
+        int statusCode = 0;
+
         try
         {
             Utilities.StaThreadWrapper(async () =>
@@ -42,27 +55,34 @@ public class Program
                 try
                 {
                     using var host = CreateHostBuilder(args).Build();
+
                     await host.StartAsync();
 
                     app = host.Services.GetRequiredService<App>();
 
-                    window = new MainWindow(host.Services);
+                    app.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
-                    app.Run(window);
+                    app.MainWindow = host.Services.GetRequiredService<MainWindow>();
+
+                    app.Run(app.MainWindow);
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
                     window?.Close();
                     app?.Shutdown();
+
+                    statusCode = 1;
                 }
             });
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
+
+            statusCode = 2;
         }
 
-        return 0;
+        return statusCode;
     }
 }

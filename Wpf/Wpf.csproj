@@ -7,6 +7,12 @@
     <UseWPF>true</UseWPF>
     <StartupObject>CSharpSandbox.Wpf.Program</StartupObject>
     <UseWindowsForms>True</UseWindowsForms>
+    <IncrementVersionOnBuild>1.0.0.+</IncrementVersionOnBuild>
+    <Product>$(SolutionName).$(AssemblyName)</Product>
+    <Authors>$(SolutionName).$(AssemblyName)</Authors>
+    <PackageId>$(SolutionName).$(AssemblyName)</PackageId>
+    <RootNamespace>$(SolutionName).$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+    <Version>1.0.0.61</Version>
   </PropertyGroup>
 
   <ItemGroup>

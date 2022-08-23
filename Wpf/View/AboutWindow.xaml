@@ -1,0 +1,30 @@
+﻿<Window
+    x:Class="CSharpSandbox.Wpf.View.AboutWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="clr-namespace:CSharpSandbox.Wpf.View"
+    mc:Ignorable="d"
+    WindowStyle="ToolWindow"
+    x:Name="Self"
+    Title="About"
+    Height="450" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="18" />
+            <RowDefinition Height="1*" />
+        </Grid.RowDefinitions>
+        <TextBox Background="Transparent"
+             BorderThickness="0"
+             IsReadOnly="True"
+             TextWrapping="Wrap">
+            <TextBox.Text>
+                <MultiBinding StringFormat="{}{0} {1}">
+                    <Binding Path="AppName" Mode="OneWay"/>
+                    <Binding Path="AppVersion" Mode="OneWay"/>
+                </MultiBinding>
+            </TextBox.Text>
+        </TextBox>
+    </Grid>
+</Window>

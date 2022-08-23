@@ -1,6 +1,7 @@
 ﻿using CSharpSandbox.Common;
 using CSharpSandbox.Wpf.Gestures;
 using CSharpSandbox.Wpf.ViewModel;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,29 +19,44 @@ namespace CSharpSandbox.Wpf.View
     /// </summary>
     public partial class MainWindow : Window
     {
+        public RelayCommand AboutCommand { get; }
+        public IReadOnlyDictionary<string, ICommand> Commands => _commands;
+
         static readonly TimeSpan GestureTimeout = TimeSpan.FromSeconds(2);
 
+        readonly Dictionary<string, ICommand> _commands = new();
+
+
+        // TODO: inject
+        readonly DispatcherTimer _gestureTextTimer = new();
+
+        // injected
         readonly MainViewModel _viewModel;
+        readonly AboutWindow _aboutWindow;
+        readonly InputGestureTree _gestureTree;
 
-        Dictionary<string, ICommand> _commands = new Dictionary<string, ICommand>();
-
-        InputGestureTree _gestureTree = new();
-
+        // working objects overwritten during operation
         InputGestureTree.Walker? _gestureWalker;
         DateTime? _gestureTime;
 
-        DispatcherTimer _gestureTextTimer = new();
-
-        public IServiceProvider Services { get; }
-        public IReadOnlyDictionary<string, ICommand> Commands => _commands;
-
-        public MainWindow(IServiceProvider services)
+        public MainWindow(
+            MainViewModel viewModel,
+            AboutWindow aboutWindow,
+            InputGestureTree gestureTree)
         {
-            Services = services ?? throw new ArgumentNullException(nameof(services));
+            AboutCommand = new RelayCommand(AboutCommand_Invoked);
+
+            _commands.Add("About", AboutCommand);
+
+            _aboutWindow = aboutWindow;
+
+            _gestureTree = gestureTree;
+
+            DataContext = viewModel;
+
+            _viewModel = viewModel;
 
             InitializeComponent();
-
-            _viewModel = (MainViewModel)DataContext;
 
             _gestureTextTimer.Interval = GestureTimeout;
             _gestureTextTimer.Tick += new EventHandler((o, e) =>
@@ -50,16 +66,6 @@ namespace CSharpSandbox.Wpf.View
             });
 
             Task.Factory.StartNew(Terminal.Start);
-        }
-
-        private void Self_Closing(object sender, CancelEventArgs e)
-        {
-
-        }
-
-        private void Self_Closed(object sender, EventArgs e)
-        {
-            Terminal.Exit(0);
         }
 
         public void SetKeyBinding(string commandName, params InputGestureTree.Stimulus[] stimuli)
@@ -82,7 +88,7 @@ namespace CSharpSandbox.Wpf.View
             }
         }
 
-        private void Self_PreviewKeyDown(object sender, KeyEventArgs e)
+        protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             try
             {
@@ -158,11 +164,30 @@ namespace CSharpSandbox.Wpf.View
                 _gestureWalker = null;
                 _gestureTime = null;
             }
+
+            base.OnPreviewKeyDown(e);
         }
 
-        private void Self_PreviewKeyUp(object sender, KeyEventArgs e)
+        protected override void OnPreviewKeyUp(KeyEventArgs e)
         {
+            base.OnPreviewKeyUp(e);
+        }
 
+        protected override void OnClosed(EventArgs e)
+        {
+            Terminal.Exit(0);
+
+            base.OnClosed(e);
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            base.OnClosing(e);
+        }
+
+        private void AboutCommand_Invoked()
+        {
+            _aboutWindow.Show();
         }
     }
 }

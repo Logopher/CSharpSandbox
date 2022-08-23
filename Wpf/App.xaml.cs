@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -26,7 +27,7 @@ namespace CSharpSandbox.Wpf
 
         void Self_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
-
+            Debugger.Break();
         }
     }
 }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace CSharpSandbox.Wpf.Infrastructure
 {
-    internal abstract class RootViewModel : BaseViewModel
+    public abstract class RootViewModel : BaseViewModel
     {
     }
 }
