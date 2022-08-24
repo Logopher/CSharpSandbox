@@ -85,6 +85,8 @@ public class Repository : IDisposable
                     CommandName = m.CommandName,
                     IsReadOnly = m.IsReadOnly,
                 };
+
+                _context.MenuItems.Add(d);
             }
             else
             {
