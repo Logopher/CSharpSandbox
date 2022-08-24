@@ -42,6 +42,11 @@ public class Repository : IDisposable
                 });
 
         _menuItems = new List<Model.MenuItem>();
+        LoadAll();
+    }
+
+    private void LoadAll()
+    {
         MenuWalker.WalkMenu2(_menuItems, _context.MenuItems, (mP, dP, m, d) =>
         {
             if (d == null)
@@ -55,11 +60,9 @@ public class Repository : IDisposable
 
                 mP?.Add(m);
             }
-            else if (!m.IsReadOnly)
+            else
             {
-                m.Header = d.Header;
-                m.AccessCharacter = d.AccessCharacter;
-                m.CommandName = d.CommandName;
+                m.Load(d);
             }
 
             return (m, d);

@@ -55,7 +55,7 @@ namespace Data.Model
             }
         }
 
-        public bool IsReadOnly { get; }
+        public bool IsReadOnly { get; private set; }
 
         public IReadOnlyList<MenuItem> Children => _children;
 
@@ -70,6 +70,14 @@ namespace Data.Model
         public MenuItem(string header, string commandName, bool isReadOnly = false)
             : this(header, null, commandName, isReadOnly)
         {
+        }
+
+        internal void Load(Database.MenuItem d)
+        {
+            _header = d.Header;
+            _accessCharacter = d.AccessCharacter;
+            _commandName = d.CommandName;
+            IsReadOnly = d.IsReadOnly;
         }
 
         public void Add(MenuItem child)
