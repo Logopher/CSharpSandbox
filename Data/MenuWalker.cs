@@ -148,7 +148,36 @@ namespace Data
 
                 dbEnumerMore = dbEnumerMore && dbEnumer.Step(out dbValue);
 
-                helper.Recurse(modelValue, dbValue);
+                if (modelValue == null || dbValue == null)
+                {
+                    Recurse(modelParent, dbParent, modelValue, dbValue);
+                }
+                else
+                {
+                    int compare() => modelValue.Header.CompareTo(dbValue.Header);
+                    if (compare() == 0)
+                    {
+                        Recurse(modelParent, dbParent, modelValue, dbValue);
+                    }
+                    else
+                    {
+                        while (modelValue != null && dbValue != null && compare() != 0)
+                        {
+                            if (compare() < 0)
+                            {
+                                Recurse(modelParent, dbParent, modelValue, null);
+                                modelEnumer.Step(out modelValue);
+                            }
+                            else
+                            {
+                                Recurse(modelParent, dbParent, null, dbValue);
+                                dbEnumer.Step(out dbValue);
+                            }
+                        }
+
+                        Recurse(modelParent, dbParent, modelValue, dbValue);
+                    }
+                }
             }
         }
     }
@@ -170,44 +199,8 @@ namespace Data
             _dbEnumer = dbEnumer;
         }
 
-        public void Recurse(Model.MenuItem? modelValue, Database.MenuItem? dbValue)
+        public void Walk(Model.MenuItem? modelValue, Database.MenuItem? dbValue)
         {
-            if (modelValue == null || dbValue == null)
-            {
-                _walker.Recurse(_modelParent, _dbParent, modelValue, dbValue);
-            }
-            else
-            {
-                int compare() => modelValue!.Header.CompareTo(dbValue!.Header);
-                if (compare() == 0)
-                {
-                    _walker.Recurse(_modelParent, _dbParent, modelValue, dbValue);
-                }
-                else
-                {
-                    while (compare() != 0)
-                    {
-                        if (compare() < 0)
-                        {
-                            _walker.Recurse(_modelParent, _dbParent, modelValue, null);
-                            if (!_modelEnumer.Step(out modelValue))
-                            {
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            _walker.Recurse(_modelParent, _dbParent, null, dbValue);
-                            if (!_dbEnumer.Step(out dbValue))
-                            {
-                                break;
-                            }
-                        }
-                    }
-
-                    Recurse(modelValue, dbValue);
-                }
-            }
         }
     }
 }
