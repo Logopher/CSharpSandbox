@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -27,17 +28,28 @@ namespace CSharpSandbox.Wpf.Gestures
         public static readonly KeyClass MediaKeys = FromRanges((Key.VolumeMute, Key.MediaPlayPause));
         public static readonly KeyClass OemKeys = FromRanges((Key.OemSemicolon, Key.OemBackslash), (Key.OemAttn, Key.OemBackTab), (Key.OemClear, Key.OemClear));
         public static readonly KeyClass MiscellaneousKeys = FromKeys(Key.Cancel, Key.Back, Key.Clear, Key.Pause, Key.Escape, Key.Select, Key.Print, Key.Execute, Key.PrintScreen, Key.Insert, Key.Delete, Key.Help, Key.Apps, Key.Sleep, Key.LaunchMail, Key.SelectMedia, Key.LaunchApplication1, Key.LaunchApplication2, Key.System, Key.Attn, Key.CrSel, Key.ExSel, Key.EraseEof, Key.Play, Key.Zoom, Key.NoName, Key.Pa1);
-        public static readonly KeyClass UnaccountedKeys = AllKeys.Except(LetterKeys, FunctionKeys, ExtendedFunctionKeys, NumericKeys, ModifierKeys, LockKeys, NavigationKeys, WhitespaceKeys, InputModeKeys, ImeKeys, PunctuationKeys, BrowserKeys, MediaKeys, OemKeys, MiscellaneousKeys);
+        public static readonly KeyClass UnaccountedKeys;
 
         static KeyClass()
         {
             try
             {
+                var classes = typeof(KeyClass)
+                    .GetProperties(BindingFlags.Public | BindingFlags.Static)
+                    .Where(p => p.Name != nameof(UnaccountedKeys) && p.PropertyType == typeof(KeyClass))
+                    .Select(p => (KeyClass)p.GetValue(null)!)
+                    .Where(c => c != null)
+                    .ToArray();
+                UnaccountedKeys = AllKeys.Except(classes)!;
                 Debug.Assert(UnaccountedKeys.Count == 0);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex.ToString());
+                Console.WriteLine(ex.ToString());
+            }
+            finally
+            {
+                UnaccountedKeys ??= new KeyClass(Array.Empty<Key>());
             }
         }
 

@@ -6,6 +6,7 @@ using System.Management.Automation.Host;
 using System.Management.Automation.Runspaces;
 using System.Reflection;
 using PSHost = CSharpSandbox.Shells.PowerShell.PSHost;
+using PS = System.Management.Automation.PowerShell;
 
 namespace CSharpSandbox.Shells;
 
@@ -13,7 +14,9 @@ public sealed class PSDriver : ShellDriver, IPSHost
 {
     private readonly PSHost _host;
 
-    private System.Management.Automation.PowerShell? _powerShellCommand;
+    private PS? _powerShell;
+
+    public override Language Language { get; } = Language.PowerShell;
 
     public override bool HasStarted { get; protected set; }
 
@@ -64,6 +67,16 @@ public sealed class PSDriver : ShellDriver, IPSHost
         IsReadyForInput = true;
 
         return Task.CompletedTask;
+    }
+
+    public override Task Execute(Script script)
+    {
+        if(script.Language != Language)
+        {
+            throw new InvalidOperationException($"Attempted to run a {script.Language} script in a {Language} runtime.");
+        }
+
+        return Execute(script.Source);
     }
 
     public override Task Execute(string command)
@@ -123,11 +136,10 @@ public sealed class PSDriver : ShellDriver, IPSHost
 
             var executionThread = new Thread(() =>
             {
-                _powerShellCommand = System.Management.Automation.PowerShell.Create();
-                _powerShellCommand.AddScript(command);
-                _powerShellCommand.Runspace = _host.Runspace;
+                _powerShell = PS.Create(RunspaceMode.CurrentRunspace);
+                _powerShell.AddScript(command);
 
-                var results = _powerShellCommand.Invoke();
+                var results = _powerShell.Invoke();
 
                 // Display the results.
                 foreach (PSObject result in results)
@@ -136,7 +148,7 @@ public sealed class PSDriver : ShellDriver, IPSHost
                 }
 
                 // Display any non-terminating errors.
-                foreach (ErrorRecord error in _powerShellCommand.Streams.Error)
+                foreach (ErrorRecord error in _powerShell.Streams.Error)
                 {
                     WriteLine($"PowerShell Error: {error}");
                 }
@@ -162,7 +174,7 @@ public sealed class PSDriver : ShellDriver, IPSHost
 
     public override Task StopExecution()
     {
-        _powerShellCommand?.Stop();
+        _powerShell?.Stop();
 
         return Task.CompletedTask;
     }
@@ -171,8 +183,8 @@ public sealed class PSDriver : ShellDriver, IPSHost
     {
         _host.Runspace.Close();
 
-        _powerShellCommand?.Dispose();
-        _powerShellCommand = null;
+        _powerShell?.Dispose();
+        _powerShell = null;
         HasExited = true;
         HasStarted = false;
 

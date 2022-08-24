@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -52,7 +53,7 @@ namespace CSharpSandbox.Wpf.Gestures
                 g => g.Key,
                 g =>
                 {
-                    var names = g.Select(kv => kv.Key).ToList();
+                    var names = g.Select(kv => kv.Key).OrderBy(s => s).ToList();
                     return (IReadOnlyList<string>)names;
                 });
 
@@ -60,13 +61,17 @@ namespace CSharpSandbox.Wpf.Gestures
 
         public static string GetCanonicalName(Key key)
         {
-            if(_canonicalNames.TryGetValue(key, out var name))
+            if (_canonicalNames.TryGetValue(key, out var name))
             {
                 return name;
             }
             else
             {
-                return GetNames(key).Single();
+                var names = GetNames(key);
+                Debug.Assert(names.Count == 1);
+                var result = names.FirstOrDefault();
+                Debug.Assert(result != null);
+                return result;
             }
         }
     }

@@ -20,6 +20,8 @@ public sealed class BatchDriver : ShellDriver
     private readonly CancellationTokenSource _keyboardInterrupt = new();
     private readonly BlockingCollection<Line> _queue = new();
 
+    public override Language Language { get; } = Language.Batch;
+
     public BatchDriver(ITerminal terminal, string promptTemplate)
         : base(terminal, promptTemplate)
     {
@@ -276,7 +278,7 @@ public sealed class BatchDriver : ShellDriver
 
     private void Print(string text, bool newline = true)
     {
-        if(newline)
+        if (newline)
         {
             WriteLine(text);
         }

@@ -4,6 +4,8 @@ public abstract class ShellDriver
 {
     protected ITerminal Terminal { get; }
 
+    public abstract Language Language { get; }
+
     public abstract bool HasStarted { get; protected set; }
 
     public abstract bool HasExited { get; protected set; }
@@ -27,6 +29,8 @@ public abstract class ShellDriver
     public abstract Task Start();
 
     public abstract Task Execute(string command);
+
+    public abstract Task Execute(IScript script);
 
     public abstract Task StopExecution();
 
