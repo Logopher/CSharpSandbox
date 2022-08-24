@@ -10,6 +10,13 @@ namespace CSharpSandbox.Common
     {
         public const string EmptyString = "";
 
+        public static T? Step<T>(this IEnumerator<T> enumer)
+            where T : class
+        {
+            var result = enumer.MoveNext();
+            return result ? enumer.Current : null;
+        }
+
         public static bool Step<T>(this IEnumerator<T> enumer, out T? value)
         {
             var result = enumer.MoveNext();

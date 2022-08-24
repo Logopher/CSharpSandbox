@@ -144,9 +144,17 @@ namespace Data
 
             while (modelEnumerMore || dbEnumerMore)
             {
-                modelEnumerMore = modelEnumerMore && modelEnumer.Step(out modelValue);
+                if (modelEnumerMore)
+                {
+                    modelValue = modelEnumer.Step();
+                    modelEnumerMore = modelValue != null;
+                }
 
-                dbEnumerMore = dbEnumerMore && dbEnumer.Step(out dbValue);
+                if (dbEnumerMore)
+                {
+                    dbValue = dbEnumer.Step();
+                    dbEnumerMore = dbValue != null;
+                }
 
                 if (modelValue == null || dbValue == null)
                 {
@@ -166,12 +174,12 @@ namespace Data
                             if (compare() < 0)
                             {
                                 Recurse(modelParent, dbParent, modelValue, null);
-                                modelEnumer.Step(out modelValue);
+                                modelValue = modelEnumer.Step();
                             }
                             else
                             {
                                 Recurse(modelParent, dbParent, null, dbValue);
-                                dbEnumer.Step(out dbValue);
+                                dbValue = dbEnumer.Step();
                             }
                         }
 
