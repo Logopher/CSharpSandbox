@@ -190,7 +190,7 @@ namespace Data
                         if (compare() < 0)
                         {
                             _walker.Recurse(_modelParent, _dbParent, modelValue, null);
-                            if (_modelEnumer.Step(out modelValue))
+                            if (!_modelEnumer.Step(out modelValue))
                             {
                                 break;
                             }
@@ -198,7 +198,7 @@ namespace Data
                         else
                         {
                             _walker.Recurse(_modelParent, _dbParent, null, dbValue);
-                            if (_dbEnumer.Step(out dbValue))
+                            if (!_dbEnumer.Step(out dbValue))
                             {
                                 break;
                             }
