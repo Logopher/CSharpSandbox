@@ -142,10 +142,12 @@ namespace Data
             Model.MenuItem? modelValue = null;
             Database.MenuItem? dbValue = null;
 
-            while ((modelEnumerMore || dbEnumerMore)
-                && (!modelEnumerMore || (modelEnumerMore = modelEnumer.Step(out modelValue)))
-                && (!dbEnumerMore || (dbEnumerMore = dbEnumer.Step(out dbValue))))
+            while (modelEnumerMore || dbEnumerMore)
             {
+                modelEnumerMore = modelEnumerMore && modelEnumer.Step(out modelValue);
+
+                dbEnumerMore = dbEnumerMore && dbEnumer.Step(out dbValue);
+
                 helper.Recurse(modelValue, dbValue);
             }
         }
