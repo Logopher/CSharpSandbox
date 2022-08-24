@@ -59,33 +59,42 @@ namespace Data
             var modelEnumer = model.GetEnumerator();
             var dbEnumer = db.GetEnumerator();
 
+            var modelValue = modelEnumer.Step();
+
+            var dbValue = dbEnumer.Step();
+
             while (true)
             {
-                var modelValue = modelEnumer.Step();
-
-                var dbValue = dbEnumer.Step();
-
-                int compare() => modelValue.Header.CompareTo(dbValue.Header);
-                while (modelValue != null && dbValue != null && compare() != 0)
-                {
-                    if (compare() < 0)
-                    {
-                        Recurse(modelParent, dbParent, modelValue, null);
-                        modelValue = modelEnumer.Step();
-                    }
-                    else
-                    {
-                        Recurse(modelParent, dbParent, null, dbValue);
-                        dbValue = dbEnumer.Step();
-                    }
-                }
-
                 if (modelValue == null && dbValue == null)
                 {
                     break;
                 }
 
-                Recurse(modelParent, dbParent, modelValue, dbValue);
+                if (modelValue == null || dbValue == null)
+                {
+                    Recurse(modelParent, dbParent, modelValue, dbValue);
+                    modelValue = modelEnumer.Step();
+                    dbValue = dbEnumer.Step();
+                    continue;
+                }
+
+                var direction = modelValue.Header.CompareTo(dbValue.Header);
+                if (direction == 0)
+                {
+                    Recurse(modelParent, dbParent, modelValue, dbValue);
+                    modelValue = modelEnumer.Step();
+                    dbValue = dbEnumer.Step();
+                }
+                else if (direction < 0)
+                {
+                    Recurse(modelParent, dbParent, modelValue, null);
+                    modelValue = modelEnumer.Step();
+                }
+                else if (0 < direction)
+                {
+                    Recurse(modelParent, dbParent, null, dbValue);
+                    dbValue = dbEnumer.Step();
+                }
             }
         }
     }
