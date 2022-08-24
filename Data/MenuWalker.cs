@@ -134,25 +134,24 @@ namespace Data
             var modelEnumer = model.GetEnumerator();
             var dbEnumer = db.GetEnumerator();
 
-            var modelEnumerMore = true;
-            var dbEnumerMore = true;
+            bool firstIter = true;
 
             Model.MenuItem? modelValue = null;
             Database.MenuItem? dbValue = null;
 
-            while (modelEnumerMore || dbEnumerMore)
+            do
             {
-                if (modelEnumerMore)
+                if (firstIter || modelValue != null)
                 {
                     modelValue = modelEnumer.Step();
-                    modelEnumerMore = modelValue != null;
                 }
 
-                if (dbEnumerMore)
+                if (firstIter || dbValue != null)
                 {
                     dbValue = dbEnumer.Step();
-                    dbEnumerMore = dbValue != null;
                 }
+
+                firstIter = false;
 
                 int compare() => modelValue.Header.CompareTo(dbValue.Header);
                 while (modelValue != null && dbValue != null && compare() != 0)
@@ -169,8 +168,12 @@ namespace Data
                     }
                 }
 
-                Recurse(modelParent, dbParent, modelValue, dbValue);
+                if (modelValue != null || dbValue != null)
+                {
+                    Recurse(modelParent, dbParent, modelValue, dbValue);
+                }
             }
+            while (modelValue != null || dbValue != null);
         }
     }
 }
