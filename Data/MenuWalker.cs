@@ -154,36 +154,22 @@ namespace Data
                     dbEnumerMore = dbValue != null;
                 }
 
-                if (modelValue == null || dbValue == null)
+                int compare() => modelValue.Header.CompareTo(dbValue.Header);
+                while (modelValue != null && dbValue != null && compare() != 0)
                 {
-                    Recurse(modelParent, dbParent, modelValue, dbValue);
-                }
-                else
-                {
-                    int compare() => modelValue.Header.CompareTo(dbValue.Header);
-                    if (compare() == 0)
+                    if (compare() < 0)
                     {
-                        Recurse(modelParent, dbParent, modelValue, dbValue);
+                        Recurse(modelParent, dbParent, modelValue, null);
+                        modelValue = modelEnumer.Step();
                     }
                     else
                     {
-                        while (modelValue != null && dbValue != null && compare() != 0)
-                        {
-                            if (compare() < 0)
-                            {
-                                Recurse(modelParent, dbParent, modelValue, null);
-                                modelValue = modelEnumer.Step();
-                            }
-                            else
-                            {
-                                Recurse(modelParent, dbParent, null, dbValue);
-                                dbValue = dbEnumer.Step();
-                            }
-                        }
-
-                        Recurse(modelParent, dbParent, modelValue, dbValue);
+                        Recurse(modelParent, dbParent, null, dbValue);
+                        dbValue = dbEnumer.Step();
                     }
                 }
+
+                Recurse(modelParent, dbParent, modelValue, dbValue);
             }
         }
     }
