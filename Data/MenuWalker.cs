@@ -134,8 +134,6 @@ namespace Data
             var modelEnumer = model.GetEnumerator();
             var dbEnumer = db.GetEnumerator();
 
-            var helper = new MenuWalkerHelper(this, modelParent, dbParent, modelEnumer, dbEnumer);
-
             var modelEnumerMore = true;
             var dbEnumerMore = true;
 
