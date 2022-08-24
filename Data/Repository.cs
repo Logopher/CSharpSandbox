@@ -47,7 +47,7 @@ public class Repository : IDisposable
 
     private void LoadAll()
     {
-        MenuWalker.WalkMenu2(_menuItems, _context.MenuItems, (mP, dP, m, d) =>
+        MenuWalker.Walk(_menuItems, _context.MenuItems, (mP, dP, m, d) =>
         {
             if (d == null)
             {
@@ -71,7 +71,7 @@ public class Repository : IDisposable
 
     public void SaveAll()
     {
-        MenuWalker.WalkMenu2(_menuItems, _context.MenuItems, (mP, dP, m, d) =>
+        MenuWalker.Walk(_menuItems, _context.MenuItems, (mP, dP, m, d) =>
         {
             if (m == null)
             {
