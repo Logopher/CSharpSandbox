@@ -189,26 +189,4 @@ namespace Data
             }
         }
     }
-
-    internal class MenuWalkerHelper
-    {
-        private readonly MenuWalker _walker;
-        private readonly Model.MenuItem? _modelParent;
-        private readonly Database.MenuItem? _dbParent;
-        private readonly List<Model.MenuItem>.Enumerator _modelEnumer;
-        private readonly List<Database.MenuItem>.Enumerator _dbEnumer;
-
-        public MenuWalkerHelper(MenuWalker walker, Model.MenuItem? modelParent, Database.MenuItem? dbParent, List<Model.MenuItem>.Enumerator modelEnumer, List<Database.MenuItem>.Enumerator dbEnumer)
-        {
-            _walker = walker;
-            _modelParent = modelParent;
-            _dbParent = dbParent;
-            _modelEnumer = modelEnumer;
-            _dbEnumer = dbEnumer;
-        }
-
-        public void Walk(Model.MenuItem? modelValue, Database.MenuItem? dbValue)
-        {
-        }
-    }
 }
