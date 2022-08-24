@@ -178,28 +178,32 @@ namespace Data
             }
             else
             {
-                var direction = modelValue.Header.CompareTo(dbValue.Header);
-                if (direction == 0)
+                int compare() => modelValue!.Header.CompareTo(dbValue!.Header);
+                if (compare() == 0)
                 {
                     _walker.Recurse(_modelParent, _dbParent, modelValue, dbValue);
                 }
-                else if (direction < 0)
+                else
                 {
-                    do
+                    while (compare() != 0)
                     {
-                        _walker.Recurse(_modelParent, _dbParent, modelValue, null);
+                        if (compare() < 0)
+                        {
+                            _walker.Recurse(_modelParent, _dbParent, modelValue, null);
+                            if (_modelEnumer.Step(out modelValue))
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            _walker.Recurse(_modelParent, _dbParent, null, dbValue);
+                            if (_dbEnumer.Step(out dbValue))
+                            {
+                                break;
+                            }
+                        }
                     }
-                    while (_modelEnumer.Step(out modelValue) && modelValue!.Header.CompareTo(dbValue.Header) < 0);
-
-                    Recurse(modelValue, dbValue);
-                }
-                else if (0 < direction)
-                {
-                    do
-                    {
-                        _walker.Recurse(_modelParent, _dbParent, null, dbValue);
-                    }
-                    while (_dbEnumer.Step(out dbValue) && 0 < modelValue.Header.CompareTo(dbValue!.Header));
 
                     Recurse(modelValue, dbValue);
                 }
