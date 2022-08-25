@@ -71,7 +71,7 @@ public sealed class PSDriver : ShellDriver, IPSHost
 
     public override Task Execute(Script script)
     {
-        if(script.Language != Language)
+        if (script.Language != Language)
         {
             throw new InvalidOperationException($"Attempted to run a {script.Language} script in a {Language} runtime.");
         }
@@ -97,6 +97,7 @@ public sealed class PSDriver : ShellDriver, IPSHost
             }
 
             IsExecuting = true;
+            // TODO: Uncomment this and test ReadLine / Read-Host.
             //IsReadyForInput = false;
 
             var trueOutput = Console.Out;
@@ -136,7 +137,8 @@ public sealed class PSDriver : ShellDriver, IPSHost
 
             var executionThread = new Thread(() =>
             {
-                _powerShell = PS.Create(RunspaceMode.CurrentRunspace);
+                _powerShell = PS.Create();
+                _powerShell.Runspace = _host.Runspace;
                 _powerShell.AddScript(command);
 
                 var results = _powerShell.Invoke();

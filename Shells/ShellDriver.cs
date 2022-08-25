@@ -30,7 +30,7 @@ public abstract class ShellDriver
 
     public abstract Task Execute(string command);
 
-    public abstract Task Execute(IScript script);
+    public abstract Task Execute(Script script);
 
     public abstract Task StopExecution();
 

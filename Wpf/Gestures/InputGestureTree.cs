@@ -19,15 +19,13 @@ namespace CSharpSandbox.Wpf.Gestures
         {
             if (!_root.TryGetValue(stimulus, out INode? node))
             {
-                if (createNodes)
-                {
-                    node = new Branch(stimulus);
-                    _root.Add(stimulus, node);
-                }
-                else
+                if (!createNodes)
                 {
                     throw new Exception();
                 }
+
+                node = new Branch(stimulus);
+                _root.Add(stimulus, node);
             }
 
             return new Walker(node, createNodes);
@@ -313,6 +311,10 @@ namespace CSharpSandbox.Wpf.Gestures
             }
 
             public override int GetHashCode() => HashCode.Combine(ModifierKeys, Key);
+
+            public static bool operator ==(Stimulus left, Stimulus right) => left.Equals(right);
+
+            public static bool operator !=(Stimulus left, Stimulus right) => !(left == right);
         }
     }
 }

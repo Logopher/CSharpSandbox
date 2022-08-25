@@ -34,10 +34,11 @@ namespace CSharpSandbox.Wpf.Gestures
         {
             try
             {
-                var classes = typeof(KeyClass)
-                    .GetProperties(BindingFlags.Public | BindingFlags.Static)
-                    .Where(p => p.Name != nameof(UnaccountedKeys) && p.PropertyType == typeof(KeyClass))
-                    .Select(p => (KeyClass)p.GetValue(null)!)
+                var fields = typeof(KeyClass)
+                    .GetFields(BindingFlags.Public | BindingFlags.Static);
+                var classes = fields
+                    .Where(f => f.Name != nameof(UnaccountedKeys) && f.FieldType == typeof(KeyClass))
+                    .Select(f => (KeyClass)f.GetValue(null)!)
                     .Where(c => c != null)
                     .ToArray();
                 UnaccountedKeys = AllKeys.Except(classes)!;

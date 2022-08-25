@@ -1,5 +1,4 @@
-﻿using Data;
-using System;
+﻿using System;
 using System.Windows.Input;
 
 namespace CSharpSandbox.Wpf.Gestures
@@ -11,12 +10,6 @@ namespace CSharpSandbox.Wpf.Gestures
                   _ => execute(),
                   canExecute == null ? null : _ => canExecute())
         {
-        }
-
-        public RelayCommand(Command command)
-            : base()
-        {
-
         }
 
         public void Execute() => Execute(null);

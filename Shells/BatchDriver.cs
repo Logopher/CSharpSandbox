@@ -134,6 +134,16 @@ public sealed class BatchDriver : ShellDriver
         return Task.CompletedTask;
     }
 
+    public override Task Execute(Script script)
+    {
+        if (script.Language != Language)
+        {
+            throw new InvalidOperationException($"Attempted to run a {script.Language} script in a {Language} runtime.");
+        }
+
+        return Execute(script.Source);
+    }
+
     public override async Task Execute(string command)
     {
         if (_shellOutput == null || _shellError == null || _shellInput == null)
