@@ -60,41 +60,33 @@ namespace Data
             var dbEnumer = db.GetEnumerator();
 
             var modelValue = modelEnumer.Step();
-
             var dbValue = dbEnumer.Step();
 
-            while (true)
+            while (modelValue != null || dbValue != null)
             {
-                if (modelValue == null && dbValue == null)
-                {
-                    break;
-                }
-
                 if (modelValue == null || dbValue == null)
                 {
                     Recurse(modelParent, dbParent, modelValue, dbValue);
-                    modelValue = modelEnumer.Step();
-                    dbValue = dbEnumer.Step();
-                    continue;
+                }
+                else
+                {
+                    var direction = modelValue.Header.CompareTo(dbValue.Header);
+                    if (direction == 0)
+                    {
+                        Recurse(modelParent, dbParent, modelValue, dbValue);
+                    }
+                    else if (direction < 0)
+                    {
+                        Recurse(modelParent, dbParent, modelValue, null);
+                    }
+                    else if (0 < direction)
+                    {
+                        Recurse(modelParent, dbParent, null, dbValue);
+                    }
                 }
 
-                var direction = modelValue.Header.CompareTo(dbValue.Header);
-                if (direction == 0)
-                {
-                    Recurse(modelParent, dbParent, modelValue, dbValue);
-                    modelValue = modelEnumer.Step();
-                    dbValue = dbEnumer.Step();
-                }
-                else if (direction < 0)
-                {
-                    Recurse(modelParent, dbParent, modelValue, null);
-                    modelValue = modelEnumer.Step();
-                }
-                else if (0 < direction)
-                {
-                    Recurse(modelParent, dbParent, null, dbValue);
-                    dbValue = dbEnumer.Step();
-                }
+                modelValue = modelEnumer.Step();
+                dbValue = dbEnumer.Step();
             }
         }
     }
