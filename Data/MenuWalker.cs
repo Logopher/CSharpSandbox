@@ -67,6 +67,8 @@ namespace Data
                 if (modelValue == null || dbValue == null)
                 {
                     Recurse(modelParent, dbParent, modelValue, dbValue);
+                    modelValue = modelEnumer.Step();
+                    dbValue = dbEnumer.Step();
                 }
                 else
                 {
@@ -74,19 +76,20 @@ namespace Data
                     if (direction == 0)
                     {
                         Recurse(modelParent, dbParent, modelValue, dbValue);
+                        modelValue = modelEnumer.Step();
+                        dbValue = dbEnumer.Step();
                     }
                     else if (direction < 0)
                     {
                         Recurse(modelParent, dbParent, modelValue, null);
+                        modelValue = modelEnumer.Step();
                     }
                     else if (0 < direction)
                     {
                         Recurse(modelParent, dbParent, null, dbValue);
+                        dbValue = dbEnumer.Step();
                     }
                 }
-
-                modelValue = modelEnumer.Step();
-                dbValue = dbEnumer.Step();
             }
         }
     }
