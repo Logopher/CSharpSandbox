@@ -53,6 +53,8 @@ namespace Data
             IEnumerable<Model.MenuItem> modelMenuItems,
             IEnumerable<Database.MenuItem> dbMenuItems)
         {
+            var index = 0;
+
             var model = modelMenuItems.OrderBy(i => i.Header).ToList();
             var db = dbMenuItems.OrderBy(i => i.Header).ToList();
 
@@ -90,6 +92,8 @@ namespace Data
                         dbValue = dbEnumer.Step();
                     }
                 }
+
+                index++;
             }
         }
     }
