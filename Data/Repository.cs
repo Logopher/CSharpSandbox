@@ -47,7 +47,7 @@ public class Repository : IDisposable
 
     private void LoadAll()
     {
-        MenuWalker.Walk(_menuItems, _context.MenuItems, (mP, dP, m, d) =>
+        MenuWalker.Walk(_menuItems, _context.MenuItems.ToList(), (mP, dP, m, d) =>
         {
             if (d == null)
             {

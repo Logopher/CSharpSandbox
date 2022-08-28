@@ -38,7 +38,7 @@ namespace Data
             Walk(
                 modelValue,
                 dbValue,
-                modelValue.Children,
+                modelValue.Children.ToList(),
                 dbValue.Children);
         }
 
@@ -53,24 +53,34 @@ namespace Data
             IEnumerable<Model.MenuItem> modelMenuItems,
             IEnumerable<Database.MenuItem> dbMenuItems)
         {
-            var index = 0;
-
             var model = modelMenuItems.OrderBy(i => i.Header).ToList();
             var db = dbMenuItems.OrderBy(i => i.Header).ToList();
 
-            var modelEnumer = model.GetEnumerator();
-            var dbEnumer = db.GetEnumerator();
+            Model.MenuItem? modelValue;
+            Database.MenuItem? dbValue;
 
-            var modelValue = modelEnumer.Step();
-            var dbValue = dbEnumer.Step();
+            var i = 0;
 
-            while (modelValue != null || dbValue != null)
+            void stepModel()
+            {
+                modelValue = i < model.Count ? model![i] : null;
+            }
+
+            void stepDb()
+            {
+                dbValue = i < db.Count ? db![i] : null;
+            }
+
+            stepModel();
+            stepDb();
+
+            for (i = 1; i < model.Count || i < db.Count; i++)
             {
                 if (modelValue == null || dbValue == null)
                 {
                     Recurse(modelParent, dbParent, modelValue, dbValue);
-                    modelValue = modelEnumer.Step();
-                    dbValue = dbEnumer.Step();
+                    stepModel();
+                    stepDb();
                 }
                 else
                 {
@@ -78,22 +88,21 @@ namespace Data
                     if (direction == 0)
                     {
                         Recurse(modelParent, dbParent, modelValue, dbValue);
-                        modelValue = modelEnumer.Step();
-                        dbValue = dbEnumer.Step();
+                        stepModel();
+                        stepDb();
                     }
                     else if (direction < 0)
                     {
                         Recurse(modelParent, dbParent, modelValue, null);
-                        modelValue = modelEnumer.Step();
+                        stepModel();
+                        stepDb();
                     }
                     else if (0 < direction)
                     {
                         Recurse(modelParent, dbParent, null, dbValue);
-                        dbValue = dbEnumer.Step();
+                        stepDb();
                     }
                 }
-
-                index++;
             }
         }
     }
