@@ -26,7 +26,7 @@ namespace CSharpSandbox.Tests
                 AccessCharacter = 'F',
                 CommandName = "Foo",
                 Children = new List<Database.MenuItem>(),
-            }
+            };
 
             var walker = new MenuWalker((mP, dP, m, d) =>
             {
@@ -36,7 +36,7 @@ namespace CSharpSandbox.Tests
                 return (m, d);
             });
 
-            walker.Walk(new List<Model.MenuItem> { m, m2 }, new List<Database.MenuItem>{ d, d2 });
+            walker.Walk(new List<Model.MenuItem> { m, m2 }, new List<Database.MenuItem> { d, d2 });
         }
 
         [TestMethod]
