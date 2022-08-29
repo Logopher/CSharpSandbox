@@ -11,45 +11,24 @@ namespace CSharpSandbox.Tests
         [TestMethod]
         public void Reconciliation()
         {
-            var m = new Model.MenuItem("About", 'A', "About");
-            var m2 = new Model.MenuItem("Foo", 'F', "Foo");
-            var d = new Database.MenuItem
+            /*
+            var model = new List<Model.MenuItem>
             {
-                Header = "About",
-                AccessCharacter = 'A',
-                CommandName = "About",
-                Children = new List<Database.MenuItem>(),
+                new Model.MenuItem("About", 'A', "About"),
+                new Model.MenuItem("Foo", 'F', "Foo"),
+                new Model.MenuItem("Baz", 'Z', "Baz"),
             };
-            var d2 = new Database.MenuItem
+            var db = new List<Model.MenuItem>
             {
-                Header = "Foo",
-                AccessCharacter = 'F',
-                CommandName = "Foo",
-                Children = new List<Database.MenuItem>(),
+                new Model.MenuItem("About", 'A', "About"),
+                new Model.MenuItem("Foo", 'F', "Foo"),
+                new Model.MenuItem("Bar", 'B', "Bar"),
             };
+            var menu = Repository.Reconcile(model, db);
 
-            var walker = new MenuWalker((mP, dP, m, d) =>
-            {
-                if (m == null || d == null)
-                { throw new Exception(); }
-
-                return (m, d);
-            });
-
-            walker.Walk(new List<Model.MenuItem> { m, m2 }, new List<Database.MenuItem> { d, d2 });
-        }
-
-        [TestMethod]
-        public void MenuWalker()
-        {
-
-
-            var walker = new MenuWalker((mP, dP, m, d) =>
-            {
-                m ??= new Model.MenuItem("foo", 'f', "Foo");
-                d ??= new Database.MenuItem();
-                return (m, d);
-            });
+            Assert.IsNotNull(menu);
+            Assert.AreEqual(4, menu.Count);
+            //*/
         }
     }
 }

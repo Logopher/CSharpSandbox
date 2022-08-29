@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Data.Database
 {
-    internal sealed class Context : DbContext
+    public sealed class Context : DbContext
     {
         const string DatabasePath = "data.db";
 
@@ -17,14 +17,22 @@ namespace Data.Database
         public DbSet<Command> Commands { get; set; }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
+        public Context()
+        {
+            Database.EnsureDeleted();
+            Database.EnsureCreated();
+        }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite($@"Data Source={DatabasePath};Version=3;");
+            optionsBuilder.UseSqlite($@"Data Source={DatabasePath};");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetCallingAssembly());
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         }
     }
 }

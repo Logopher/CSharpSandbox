@@ -9,6 +9,9 @@ using System.IO;
 using CSharpSandbox.Wpf.ViewModel;
 using CSharpSandbox.Wpf.Gestures;
 using System.Windows;
+using Data.Database;
+using Data;
+using System.Diagnostics;
 
 namespace CSharpSandbox.Wpf;
 
@@ -31,6 +34,10 @@ public class Program
                     loggingBuilder.SetMinimumLevel(LogLevel.Trace);
                     loggingBuilder.AddNLog(config);
                 });
+
+                services.AddSingleton<Context>();
+
+                services.AddSingleton<Repository>();
 
                 services.AddSingleton<MainWindow>();
                 services.AddSingleton<AboutWindow>();
@@ -58,16 +65,29 @@ public class Program
 
                     await host.StartAsync();
 
-                    app = host.Services.GetRequiredService<App>();
+                    var logger = host.Services.GetRequiredService<ILogger<Program>>();
 
-                    app.ShutdownMode = ShutdownMode.OnMainWindowClose;
+                    try
+                    {
+                        app = host.Services.GetRequiredService<App>();
 
-                    app.MainWindow = host.Services.GetRequiredService<MainWindow>();
+                        app.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
-                    app.Run(app.MainWindow);
+                        app.MainWindow = host.Services.GetRequiredService<MainWindow>();
+
+                        app.Run(app.MainWindow);
+                    }
+                    catch(Exception e)
+                    {
+                        Debugger.Break();
+                        Console.WriteLine("Uncaught exception in application. Check log file.");
+                        logger.LogError(e, "{Message}", e.Message);
+                    }
                 }
                 catch (Exception e)
                 {
+                    Debugger.Break();
+                    Console.WriteLine("DI facility failed.");
                     Console.WriteLine(e);
                     window?.Close();
                     app?.Shutdown();
@@ -78,6 +98,8 @@ public class Program
         }
         catch (Exception e)
         {
+            Debugger.Break();
+            Console.WriteLine("Thread facility failed.");
             Console.WriteLine(e);
 
             statusCode = 2;

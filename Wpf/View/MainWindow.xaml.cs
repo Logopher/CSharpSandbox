@@ -1,7 +1,7 @@
 ﻿using CSharpSandbox.Common;
 using CSharpSandbox.Wpf.Gestures;
 using CSharpSandbox.Wpf.ViewModel;
-using Microsoft.Extensions.DependencyInjection;
+using Data;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -35,6 +34,7 @@ namespace CSharpSandbox.Wpf.View
         readonly MainViewModel _viewModel;
         readonly AboutWindow _aboutWindow;
         readonly InputGestureTree _gestureTree;
+        readonly Repository _repository;
 
         // working objects overwritten during operation
         InputGestureTree.Walker? _gestureWalker;
@@ -43,23 +43,19 @@ namespace CSharpSandbox.Wpf.View
         public MainWindow(
             MainViewModel viewModel,
             AboutWindow aboutWindow,
-            InputGestureTree gestureTree)
+            InputGestureTree gestureTree,
+            Repository repository)
         {
+            _repository = repository;
+
             _commands.Add("About", new RelayCommand(AboutCommand_Invoked));
 
-            _menuItems = new List<MenuItem>
-            {
-                new MenuItem{ Header = "_File" },
-                new MenuItem{ Header = "_Edit" },
-                new MenuItem{ Header = "_View" },
-                new MenuItem{ Header = "_Tools" },
-                new MenuItem{ Header = "_Help",
-                    ItemsSource = new MenuItem[]
-                    {
-                        new MenuItem{ Header = "_About", Command = Commands["About"] },
-                    },
-                },
-            };
+            _menuItems = _repository.MenuItems
+                .Select(i => new MenuItem(i, GetCommand))
+                .ToList();
+
+            ResetMenus();
+            _repository.Save();
 
             _aboutWindow = aboutWindow;
 
@@ -91,6 +87,36 @@ namespace CSharpSandbox.Wpf.View
             _gestureTree.SetCommand(command, stimuli);
         }
 
+        public void ResetMenus()
+        {
+            var model = new Data.Model.MenuItem[]
+            {
+                new("File", 'F'),
+                new("Edit", 'E'),
+                new("View", 'V'),
+                new("Tools", 'T'),
+                new("Help", 'H', new Data.Model.MenuItem[]
+                {
+                    new("About", 'A', "About")
+                }),
+            };
+
+            _repository.Delete(_menuItems
+                .Select(i => i.Model)
+                .ToArray());
+
+            _menuItems.Clear();
+
+            _menuItems.AddRange(model
+                .Select(i => new MenuItem(i, GetCommand)));
+
+            _repository.Add(_menuItems
+                .Select(i => i.Model)
+                .ToArray());
+
+            _repository.Save();
+        }
+
         public void DefineCommand(string commandName, Action execute, Func<bool>? canExecute = null)
         {
             var command = new RelayCommand(execute, canExecute);
@@ -99,6 +125,16 @@ namespace CSharpSandbox.Wpf.View
             {
                 throw new ArgumentException($"Command already exists: {commandName}", nameof(commandName));
             }
+        }
+
+        public ICommand GetCommand(string commandName)
+        {
+            if (!_commands.TryGetValue(commandName, out var command))
+            {
+                throw new KeyNotFoundException($"Command not found: {commandName}");
+            }
+
+            return command;
         }
 
         protected override void OnPreviewKeyDown(KeyEventArgs e)

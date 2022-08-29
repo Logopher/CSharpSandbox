@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Data.Database;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-internal class Command
+public class Command
 {
     public int Id { get; set; }
 
@@ -21,7 +21,7 @@ internal class Command
 }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-internal class CommandConfiguration : IEntityTypeConfiguration<Command>
+public class CommandConfiguration : IEntityTypeConfiguration<Command>
 {
     public void Configure(EntityTypeBuilder<Command> builder)
     {

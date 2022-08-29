@@ -10,17 +10,17 @@ public class Repository : IDisposable
     private readonly Database.Context _context;
 
     private readonly Dictionary<string, Script> _scripts;
-    private readonly List<Model.MenuItem> _menuItems;
+    private List<Model.MenuItem> _menuItems;
 
     public IReadOnlyDictionary<string, Script> Scripts => _scripts;
 
     public IReadOnlyList<Model.MenuItem> MenuItems => _menuItems;
 
-    public Repository(ILogger logger)
+    public Repository(ILogger<Repository> logger, Database.Context context)
     {
         _logger = logger;
 
-        _context = new();
+        _context = context;
 
         _scripts = _context.Commands
             .ToDictionary(
@@ -41,69 +41,59 @@ public class Repository : IDisposable
                     return Script.Create(Enum.Parse<Language>(c.Language), source);
                 });
 
-        _menuItems = new List<Model.MenuItem>();
-        LoadAll();
+        _menuItems = _context.MenuItems
+            .Select(i => new Model.MenuItem(i))
+            .ToList();
     }
 
-    private void LoadAll()
+    public void Add(params Model.MenuItem[] items)
     {
-        MenuWalker.Walk(_menuItems, _context.MenuItems.ToList(), (mP, dP, m, d) =>
+        foreach (var item in items)
         {
-            if (d == null)
-            {
-                throw new Exception();
-            }
-
-            if (m == null)
-            {
-                m = new Model.MenuItem(d.Header, d.AccessCharacter, d.CommandName, d.IsReadOnly);
-
-                mP?.Add(m);
-            }
-            else
-            {
-                m.Load(d);
-            }
-
-            return (m, d);
-        });
+            Add(item.Children.ToArray());
+            _context.Add(item.Record);
+        }
     }
 
-    public void SaveAll()
+    public void Delete(params Model.MenuItem[] items)
     {
-        MenuWalker.Walk(_menuItems, _context.MenuItems, (mP, dP, m, d) =>
+        foreach (var item in items)
         {
-            if (m == null)
+            Delete(item.Children.ToArray());
+            item.Parent?.Remove(item);
+            _context.Remove(item.Record);
+        }
+    }
+
+    public void SetHeader(Model.MenuItem item, string header)
+    {
+        if (item.Id != null)
+        {
+            var record = _context.MenuItems.First(i => i.Id == item.Id);
+            var siblings = _context.MenuItems
+                .Where(i => i.Parent == record.Parent)
+                .Except(new[] { record });
+
+            if (siblings.Any(i => i.Header == header))
             {
-                throw new Exception();
+                throw new InvalidOperationException("Another item in this menu already has this header.");
             }
 
-            if (d == null)
-            {
-                d = new Database.MenuItem
-                {
-                    Parent = dP,
-                    Header = m.Header,
-                    AccessCharacter = m.AccessCharacter,
-                    CommandName = m.CommandName,
-                    IsReadOnly = m.IsReadOnly,
-                };
+            record.Header = header;
+            _context.SaveChanges();
+        }
 
-                _context.MenuItems.Add(d);
-            }
-            else
-            {
-                d.Header = m.Header;
-                d.AccessCharacter = m.AccessCharacter;
-                d.CommandName = m.CommandName;
-                d.IsReadOnly = m.IsReadOnly;
-            }
+        item.Header = header;
+    }
 
-            return (m, d);
-        });
-
+    public void Save()
+    {
         _context.SaveChanges();
     }
 
-    public void Dispose() => SaveAll();
+    public void Dispose()
+    {
+        _context.SaveChanges();
+        GC.SuppressFinalize(this);
+    }
 }
