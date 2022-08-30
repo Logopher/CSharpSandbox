@@ -43,7 +43,6 @@ namespace CSharpSandbox.Wpf.View
         public MainWindow(
             MainViewModel viewModel,
             AboutWindow aboutWindow,
-            InputGestureTree gestureTree,
             Repository repository)
         {
             _repository = repository;
@@ -59,7 +58,7 @@ namespace CSharpSandbox.Wpf.View
 
             _aboutWindow = aboutWindow;
 
-            _gestureTree = gestureTree;
+            _gestureTree = new(GetCommand);
 
             DataContext = viewModel;
 
@@ -79,12 +78,12 @@ namespace CSharpSandbox.Wpf.View
 
         public void SetKeyBinding(string commandName, params InputGestureTree.Stimulus[] stimuli)
         {
-            if (!Commands.TryGetValue(commandName, out var command))
+            if (!Commands.ContainsKey(commandName))
             {
                 throw new ArgumentException($"Invalid command name: {commandName}", nameof(commandName));
             }
 
-            _gestureTree.SetCommand(command, stimuli);
+            _gestureTree.SetCommand(commandName, stimuli);
         }
 
         public void ResetMenus()

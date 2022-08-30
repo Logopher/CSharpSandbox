@@ -44,8 +44,6 @@ public class Program
 
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<AboutViewModel>();
-
-                services.AddSingleton<InputGestureTree>();
             });
     }
 

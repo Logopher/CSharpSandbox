@@ -15,6 +15,15 @@ namespace CSharpSandbox.Wpf.Gestures
     {
         readonly Dictionary<Stimulus, INode> _root = new Dictionary<Stimulus, INode>();
 
+        readonly Dictionary<string, Stimulus[]> _reverseMap = new Dictionary<string, Stimulus[]>();
+
+        readonly Func<string, ICommand> _commandResolver;
+
+        public InputGestureTree(Func<string, ICommand> commandResolver)
+        {
+            _commandResolver = commandResolver;
+        }
+
         public Walker Walk(Stimulus stimulus, bool createNodes = false)
         {
             if (!_root.TryGetValue(stimulus, out INode? node))
@@ -29,6 +38,20 @@ namespace CSharpSandbox.Wpf.Gestures
             }
 
             return new Walker(node, createNodes);
+        }
+
+        public string GetInputGestureString(string commandName)
+        {
+            if (!_reverseMap.TryGetValue(commandName, out Stimulus[]? stimuli))
+            {
+                throw new KeyNotFoundException($"No stimuli are defined for the command name: {commandName}");
+            }
+            return string.Join(" ", stimuli);
+        }
+
+        public static Stimulus[] ParseInputGestureString(string inputGesture)
+        {
+
         }
 
         public ICommand GetCommand(params Stimulus[] stimuli)
@@ -67,7 +90,7 @@ namespace CSharpSandbox.Wpf.Gestures
             throw new Exception();
         }
 
-        public void SetCommand(ICommand command, params Stimulus[] stimuli)
+        public void SetCommand(string commandName, params Stimulus[] stimuli)
         {
             if (stimuli.Length == 0)
             {
@@ -76,6 +99,13 @@ namespace CSharpSandbox.Wpf.Gestures
 
             var stim = stimuli[0];
             Branch? branch = null;
+
+            if (!_reverseMap.TryAdd(commandName, stimuli))
+            {
+                throw new InvalidOperationException($"Command name already mapped: {commandName}");
+            }
+
+            var command = _commandResolver(commandName);
 
             for (var i = 1; i < stimuli.Length; i++)
             {
@@ -279,6 +309,11 @@ namespace CSharpSandbox.Wpf.Gestures
             {
                 ModifierKeys = modifiers;
                 Key = key;
+            }
+
+            public static bool TryParse(string s, out Stimulus stimulus)
+            {
+                Parser.TryParse();
             }
 
             public override string ToString()
