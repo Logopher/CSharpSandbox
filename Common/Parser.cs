@@ -30,7 +30,7 @@ namespace CSharpSandbox.Common
             var literal = P("literal", @"""(?:\""|[^""])+""");
             var pattern = P("pattern", @"/(?:\/|[^/])+/");
             var name = P("name", "[a-zA-Z_][a-zA-Z0-9_]+");
-            var posInt = P("name", "[0-9]+");
+            var posInt = P("posInt", "[0-9]+");
 
             var assmt = L("assmt", "=");
             var comma = L("stmtEnd", ",");
@@ -571,7 +571,7 @@ namespace CSharpSandbox.Common
                             var repeat = (RepeatRule)this;
                             var min = repeat.Minimum ?? 0;
                             var max = repeat.Maximum;
-                            for (var i = 0; i < max; i++)
+                            for (var i = 0; max == null || i < max; i++)
                             {
                                 if (rule.TryParse(tempTokens, out IParseNode? temp))
                                 {
