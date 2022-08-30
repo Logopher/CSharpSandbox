@@ -25,10 +25,10 @@ namespace CSharpSandbox.Common
             static PatternRule P(string name, string s) => _metaParser.DefinePattern(name, new Pattern(s));
 
             // rules
-            static INamedRule R(string name, RuleSegment rule) => _metaParser.DefineRule(name, rule);
+            static NamedRule R(string name, RuleSegment rule) => _metaParser.DefineRule(name, rule);
 
             var literal = P("literal", @"""(?:\""|[^""])+""");
-            var pattern = P("pattern", @"/(\/|[^/])+/");
+            var pattern = P("pattern", @"/(?:\/|[^/])+/");
             var name = P("name", "[a-zA-Z_][a-zA-Z0-9_]+");
             var posInt = P("name", "[0-9]+");
 
@@ -51,7 +51,7 @@ namespace CSharpSandbox.Common
             var repeat0 = R("repeat0", And(baseExpr, asterisk));
             var repeat1 = R("repeat1", And(baseExpr, plus));
             var notExpr = R("notExpr", And(excl, baseExpr));
-            var andExpr = R("andExpr", Repeat(Z("baseExpr2"), minimum: 2));
+            var andExpr = R("andExpr", RepeatRange(Z("baseExpr2"), minimum: 2));
             var orExpr = R("orExpr", And(Z("baseExpr2"), Repeat1(And(pipe, Z("baseExpr2")))));
             var operExpr = R("operExpr", Or(notExpr, andExpr, orExpr, repeatRange, repeat0, repeat1));
             var baseExpr2 = R("baseExpr2", Or(operExpr, baseExpr));
@@ -60,10 +60,12 @@ namespace CSharpSandbox.Common
             var token = R("token", And(name, assmt, Or(literal, pattern), stmtEnd));
             var rule = R("rule", And(name, assmt, baseExpr2, stmtEnd));
 
-            var tokenSection = R("tokenSection", Repeat(token));
-            var ruleSection = R("ruleSection", Repeat(rule));
+            var tokenSection = R("tokenSection", RepeatRange(token));
+            var ruleSection = R("ruleSection", RepeatRange(rule));
 
             var lexicon = R("lexicon", And(tokenSection, ruleSection));
+
+            var sem = new LexiconSemantics(_metaParser, lexicon);
         }
 
         private static RuleSegment And(params IRule[] rules) => RuleSegment.And(rules);
@@ -74,11 +76,11 @@ namespace CSharpSandbox.Common
 
         private static RuleSegment Option(IRule rule) => RuleSegment.Option(rule);
 
-        private static RuleSegment Repeat(IRule rule, int? minimum = null, int? maximum = null) => RuleSegment.Repeat(rule, minimum, maximum);
+        private static RuleSegment RepeatRange(IRule rule, int? minimum = null, int? maximum = null) => RuleSegment.Repeat(rule, minimum, maximum);
 
-        private static RuleSegment Repeat0(IRule rule) => Repeat(rule, 0);
+        private static RuleSegment Repeat0(IRule rule) => RepeatRange(rule, 0);
 
-        private static RuleSegment Repeat1(IRule rule) => Repeat(rule, 1);
+        private static RuleSegment Repeat1(IRule rule) => RepeatRange(rule, 1);
 
         readonly Dictionary<string, PatternRule> _patternRules = new();
         readonly Dictionary<string, INamedRule> _rules = new();
@@ -173,6 +175,113 @@ namespace CSharpSandbox.Common
                 throw new KeyNotFoundException();
             }
             return rule;
+        }
+
+        private abstract class Semantics
+        {
+            private readonly Parser _parser;
+            private readonly NamedRule _root;
+
+            public Semantics(Parser parser, NamedRule root)
+            {
+                _parser = parser;
+                _root = root;
+            }
+
+            public abstract void Parse(IParseNode node);
+        }
+
+        private class LexiconSemantics : Semantics
+        {
+            public Parser Parser { get; } = new Parser();
+
+            public LexiconSemantics(Parser parser, NamedRule root)
+                : base(parser, root)
+            {
+            }
+            void ParseToken(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+
+                var stmt = (ParseNode)pnode.Get(0);
+                var name = ((TokenNode)stmt.Get(0)).Token.Lexeme;
+                var value = (TokenNode)stmt.Get(2, 0);
+                var valueLex = value.Token.Lexeme;
+                valueLex = valueLex[1..(valueLex.Length - 1)];
+                switch (value.Rule.Name)
+                {
+                    case "literal":
+                        Parser.DefineLiteral(name, valueLex);
+                        break;
+                    case "pattern":
+                        Parser.DefinePattern(name, valueLex);
+                        break;
+                    default:
+                        throw new Exception();
+                }
+            }
+
+
+            void ParseRule(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+
+                var stmt = (ParseNode)pnode.Get(0);
+                var name = ((TokenNode)stmt.Get(0)).Token.Lexeme;
+                var value = (ParseNode)stmt.Get(2, 0);
+            }
+
+            RuleSegment ParseAnd(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+                return And(pnode.Children.Select(ParseRuleSegment).ToArray());
+            }
+
+            RuleSegment ParseOr(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+                return Or(pnode.Children.Select(ParseRuleSegment).ToArray());
+            }
+
+            RuleSegment ParseNot(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+                return Not(ParseRuleSegment(pnode.Children.Single()));
+            }
+
+            RuleSegment ParseOption(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+                return Option(ParseRuleSegment(pnode.Children.Single()));
+            }
+
+            RuleSegment ParseRepeat0(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+                return Repeat0(ParseRuleSegment(pnode.Children.Single()));
+            }
+
+            RuleSegment ParseRepeat1(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+                return Repeat1(ParseRuleSegment(pnode.Children.Single()));
+            }
+
+            RuleSegment ParseRepeatRange(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+                var range = pnode.Get(0, 1);
+                return RepeatRange(ParseRuleSegment(pnode.Get(0, 0)));
+            }
+
+            RuleSegment ParseRuleSegment(IParseNode node)
+            {
+
+            }
+
+            public override void Parse(IParseNode node)
+            {
+            }
         }
 
         internal class Pattern
@@ -610,6 +719,17 @@ namespace CSharpSandbox.Common
                 Rule = rule;
                 Children = new[] { node };
             }
+
+            public IParseNode Get(params int[] path)
+            {
+                if (1 < path.Length)
+                {
+                    return ((ParseNode)Children[path[0]]).Get(path[1..]);
+                }
+                else
+                {
+                    return Children[path[0]];
+                }
+            }
         }
     }
-}
