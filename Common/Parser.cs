@@ -161,6 +161,7 @@ namespace CSharpSandbox.Common
             if (!_lazyRules.TryGetValue(name, out NameRule? rule))
             {
                 rule = new NameRule(this, name);
+                _lazyRules.Add(name, rule);
             }
             return rule;
         }
