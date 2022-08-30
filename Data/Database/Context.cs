@@ -15,17 +15,18 @@ namespace Data.Database
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public DbSet<MenuItem> MenuItems { get; set; }
         public DbSet<Command> Commands { get; set; }
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        public DbSet<InputGesture> Gestures { get; set; }
 
         public Context()
         {
             Database.EnsureDeleted();
             Database.EnsureCreated();
         }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite($@"Data Source={DatabasePath};");
+            optionsBuilder.UseSqlite($@"Data Source={DatabasePath}");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

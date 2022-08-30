@@ -111,7 +111,7 @@ namespace Data.Model
         }
 
         public MenuItem(MenuItem? parent, string header, char? accessCharacter, bool isReadOnly, params MenuItem[] children)
-            : this(parent, header, accessCharacter, null, false, children)
+            : this(parent, header, accessCharacter, null, isReadOnly, children)
         {
         }
 
@@ -131,7 +131,7 @@ namespace Data.Model
         }
 
         public MenuItem(MenuItem? parent, string header, bool isReadOnly, params MenuItem[] children)
-            : this(parent, header, null, null, false, children)
+            : this(parent, header, null, null, isReadOnly, children)
         {
         }
 
@@ -162,11 +162,6 @@ namespace Data.Model
             _children = record.Children
                 .Select(i => new MenuItem(i))
                 .ToList();
-        }
-
-        public MenuItem(MenuItem? parent, string header, string commandName, bool isReadOnly = false)
-            : this(parent, header, null, commandName, isReadOnly)
-        {
         }
 
         public void Add(MenuItem child)

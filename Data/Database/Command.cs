@@ -11,7 +11,7 @@ namespace Data.Database;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 public class Command
 {
-    public int Id { get; set; }
+    internal int Id { get; set; }
 
     public string Name { get; set; }
 
@@ -21,7 +21,7 @@ public class Command
 }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-public class CommandConfiguration : IEntityTypeConfiguration<Command>
+internal class CommandConfiguration : IEntityTypeConfiguration<Command>
 {
     public void Configure(EntityTypeBuilder<Command> builder)
     {
