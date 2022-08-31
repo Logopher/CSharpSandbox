@@ -199,6 +199,7 @@ namespace CSharpSandbox.Common
                 : base(parser, root)
             {
             }
+
             void ParseToken(IParseNode node)
             {
                 var pnode = (ParseNode)node;
@@ -255,32 +256,67 @@ namespace CSharpSandbox.Common
                 return Option(ParseRuleSegment(pnode.Children.Single()));
             }
 
+            RuleSegment ParseParens(IParseNode node)
+            {
+                var pnode = (ParseNode)node;
+                return ParseRuleSegment(pnode.Children.Single());
+            }
+
             RuleSegment ParseRepeat0(IParseNode node)
             {
                 var pnode = (ParseNode)node;
-                return Repeat0(ParseRuleSegment(pnode.Children.Single()));
+                return Repeat0(ParseRuleSegment(pnode.Children[0]));
             }
 
             RuleSegment ParseRepeat1(IParseNode node)
             {
                 var pnode = (ParseNode)node;
-                return Repeat1(ParseRuleSegment(pnode.Children.Single()));
+                return Repeat1(ParseRuleSegment(pnode.Children[0]));
             }
 
             RuleSegment ParseRepeatRange(IParseNode node)
             {
                 var pnode = (ParseNode)node;
-                var range = pnode.Get(0, 1);
-                return RepeatRange(ParseRuleSegment(pnode.Get(0, 0)));
+                var inner = ParseRuleSegment(pnode.Get(0, 0));
+
+                var range = (ParseNode)pnode.Get(0, 1, 0);
+                var (_, commaIndex) = range.Children
+                    .Select((n, i) => (n, i))
+                    .First(tup => tup.n is TokenNode t && t.Token.Lexeme == ",");
+
+                var minNode = (TokenNode)range.Children[commaIndex - 1];
+                int? min = null;
+                if (minNode.Token.Lexeme != "{")
+                {
+                    min = int.Parse(minNode.Token.Lexeme);
+                }
+
+                var maxNode = (TokenNode)range.Children[commaIndex + 1];
+                int? max = null;
+                if (maxNode.Token.Lexeme != "}")
+                {
+                    max = int.Parse(maxNode.Token.Lexeme);
+                }
+                return RepeatRange(inner, min, max);
             }
 
             RuleSegment ParseRuleSegment(IParseNode node)
             {
+                return null;
+                /*
+                if(node.Rule is NamedRule nr)
+                {
+                    if(nr == )
+                    {
 
+                    }
+                }
+                */
             }
 
             public override void Parse(IParseNode node)
             {
+
             }
         }
 
@@ -665,13 +701,15 @@ namespace CSharpSandbox.Common
 
         internal interface IParseNode
         {
-
+            IRule Rule { get; }
         }
 
         internal class TokenNode : IParseNode
         {
             public PatternRule Rule { get; }
             public Token Token { get; }
+
+            IRule IParseNode.Rule => Rule;
 
             public TokenNode(PatternRule rule, Token token)
             {
@@ -733,3 +771,4 @@ namespace CSharpSandbox.Common
             }
         }
     }
+}
