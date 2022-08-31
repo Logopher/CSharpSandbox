@@ -49,10 +49,12 @@ namespace CSharpSandbox.Wpf.Gestures
             return string.Join(" ", stimuli);
         }
 
+        /*
         public static Stimulus[] ParseInputGestureString(string inputGesture)
         {
 
         }
+        */
 
         public ICommand GetCommand(params Stimulus[] stimuli)
         {
@@ -311,10 +313,12 @@ namespace CSharpSandbox.Wpf.Gestures
                 Key = key;
             }
 
+            /*
             public static bool TryParse(string s, out Stimulus stimulus)
             {
                 Parser.TryParse();
             }
+            */
 
             public override string ToString()
             {
