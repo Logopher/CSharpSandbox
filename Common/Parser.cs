@@ -68,7 +68,7 @@ namespace CSharpSandbox.Common
         }
     }
 
-    public class LexicalParser<TSemanticParser, TResult>
+    public abstract class LexicalParser<TSemanticParser, TResult>
         where TSemanticParser : SemanticParser<TResult>
     {
         private TSemanticParser? _semanticParser;
@@ -133,120 +133,7 @@ namespace CSharpSandbox.Common
             });
 
 
-            AddTypeRule<NamedRule>((IRule rule, TokenList tokens) =>
-            {
-                var self = (RuleSegment)rule;
-                switch (self.Operator)
-                {
-                    case Operator.And:
-                        {
-                            var tempTokens = tokens.Fork();
-                            var match = true;
-                            var nodes = new List<IParseNode>();
-                            foreach (var r in self.Rules)
-                            {
-                                var temp = Parse(r!, tempTokens);
-                                if (temp != null)
-                                {
-                                    nodes.Add(temp);
-                                }
-                                else
-                                {
-                                    match = false;
-                                    break;
-                                }
-                            }
-                            if (match)
-                            {
-                                tokens.Merge(tempTokens);
-                                return new ParseNode(self, nodes.ToArray());
-                            }
-                        }
-                        break;
-                    case Operator.Or:
-                        {
-                            var tempTokens = tokens.Fork();
-                            var match = false;
-                            IParseNode? temp = null;
-                            foreach (var r in self.Rules)
-                            {
-                                temp = Parse(r!, tempTokens);
-                                if (temp != null)
-                                {
-                                    match = true;
-                                    break;
-                                }
-                                else
-                                {
-                                    tempTokens.Cursor = 0;
-                                }
-                            }
-                            if (match)
-                            {
-                                tokens.Merge(tempTokens);
-                                return new ParseNode(self, temp!);
-                            }
-                        }
-                        break;
-                    case Operator.Not:
-                        {
-                            var tempTokens = tokens.Fork();
-                            var r = self.Rules.Single();
-                            var temp = Parse(r, tempTokens);
-                            if (temp == null)
-                            {
-                                return new ParseNode(self);
-                            }
-                        }
-                        break;
-                    case Operator.Option:
-                        {
-                            var tempTokens = tokens.Fork();
-                            var r = self.Rules.Single();
-                            var temp = Parse(r, tempTokens);
-                            if (temp != null)
-                            {
-                                tokens.Merge(tempTokens);
-                                return new ParseNode(self, temp);
-                            }
-                            else
-                            {
-                                return new ParseNode(self);
-                            }
-                        }
-                    case Operator.Repeat:
-                        {
-                            var tempTokens = tokens.Fork();
-                            var r = self.Rules.Single();
-                            var nodes = new List<IParseNode>();
-
-                            var repeat = (RepeatRule)self;
-                            var min = repeat.Minimum ?? 0;
-                            var max = repeat.Maximum;
-                            for (var i = 0; max == null || i < max; i++)
-                            {
-                                var temp = Parse(r, tempTokens);
-                                if (temp != null)
-                                {
-                                    nodes.Add(temp);
-                                }
-                                else if (i < min)
-                                {
-                                    return null;
-                                }
-                                else
-                                {
-                                    break;
-                                }
-                            }
-
-                            tokens.Merge(tempTokens);
-                            return new ParseNode(self, nodes.ToArray());
-                        }
-                }
-
-                return null;
-            });
+            AddTypeRule<RuleSegment>((IRule rule, TokenList tokens) => ParseRuleSegment((RuleSegment)rule, tokens));
         }
 
         public LexicalParser(Func<LexicalParser<TSemanticParser, TResult>, TSemanticParser> cstor, string grammar)
@@ -259,6 +146,8 @@ namespace CSharpSandbox.Common
                 SemanticParser.Parse(node);
             }
         }
+
+        protected abstract IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens);
 
         internal void AddTypeRule<TRule>(Func<IRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), rule);
 
@@ -608,6 +497,120 @@ namespace CSharpSandbox.Common
 
             throw new Exception();
         }
+
+        protected override IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens)
+        {
+            switch (rule.Operator)
+            {
+                case Operator.And:
+                    {
+                        var tempTokens = tokens.Fork();
+                        var match = true;
+                        var nodes = new List<IParseNode>();
+                        foreach (var r in rule.Rules)
+                        {
+                            var temp = Parse(r!, tempTokens);
+                            if (temp != null)
+                            {
+                                nodes.Add(temp);
+                            }
+                            else
+                            {
+                                match = false;
+                                break;
+                            }
+                        }
+                        if (match)
+                        {
+                            tokens.Merge(tempTokens);
+                            return new ParseNode(rule, nodes.ToArray());
+                        }
+                    }
+                    break;
+                case Operator.Or:
+                    {
+                        var tempTokens = tokens.Fork();
+                        var match = false;
+                        IParseNode? temp = null;
+                        foreach (var r in rule.Rules)
+                        {
+                            temp = Parse(r!, tempTokens);
+                            if (temp != null)
+                            {
+                                match = true;
+                                break;
+                            }
+                            else
+                            {
+                                tempTokens.Cursor = 0;
+                            }
+                        }
+                        if (match)
+                        {
+                            tokens.Merge(tempTokens);
+                            return new ParseNode(rule, temp!);
+                        }
+                    }
+                    break;
+                case Operator.Not:
+                    {
+                        var tempTokens = tokens.Fork();
+                        var r = rule.Rules.Single();
+                        var temp = Parse(r, tempTokens);
+                        if (temp == null)
+                        {
+                            return new ParseNode(rule);
+                        }
+                    }
+                    break;
+                case Operator.Option:
+                    {
+                        var tempTokens = tokens.Fork();
+                        var r = rule.Rules.Single();
+                        var temp = Parse(r, tempTokens);
+                        if (temp != null)
+                        {
+                            tokens.Merge(tempTokens);
+                            return new ParseNode(rule, temp);
+                        }
+                        else
+                        {
+                            return new ParseNode(rule);
+                        }
+                    }
+                case Operator.Repeat:
+                    {
+                        var tempTokens = tokens.Fork();
+                        var r = rule.Rules.Single();
+                        var nodes = new List<IParseNode>();
+
+                        var repeat = (RepeatRule)rule;
+                        var min = repeat.Minimum ?? 0;
+                        var max = repeat.Maximum;
+                        for (var i = 0; max == null || i < max; i++)
+                        {
+                            var temp = Parse(r, tempTokens);
+                            if (temp != null)
+                            {
+                                nodes.Add(temp);
+                            }
+                            else if (i < min)
+                            {
+                                return null;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+
+                        tokens.Merge(tempTokens);
+                        return new ParseNode(rule, nodes.ToArray());
+                    }
+            }
+
+            return null;
+        }
     }
 
     public class BootstrapParser<TResult>
@@ -625,7 +628,7 @@ namespace CSharpSandbox.Common
         public LexicalParser<SemanticParser<TResult>, TResult> Parse(string grammar) => _lexicalParser.Parse(grammar);
     }
 
-    internal class Pattern
+    public class Pattern
     {
         public Regex Regex { get; }
 
@@ -653,7 +656,7 @@ namespace CSharpSandbox.Common
         }
     }
 
-    internal class Token
+    public class Token
     {
         public Pattern Pattern { get; }
 
@@ -666,7 +669,7 @@ namespace CSharpSandbox.Common
         }
     }
 
-    internal class TokenList : IList<Token>
+    public class TokenList : IList<Token>
     {
         readonly List<Token> _tokens = new();
 
