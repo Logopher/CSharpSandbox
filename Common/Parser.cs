@@ -20,7 +20,6 @@ namespace CSharpSandbox.Common
 
     public interface IRule
     {
-        //internal bool TryParse(TokenList tokens, [NotNullWhen(true)] out IParseNode? node);
     }
 
     public interface INamedRule : IRule
@@ -92,18 +91,18 @@ namespace CSharpSandbox.Common
         readonly Dictionary<string, PatternRule> _patternRules = new();
         readonly Dictionary<string, INamedRule> _rules = new();
         readonly Dictionary<string, NameRule> _lazyRules = new();
-        readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _ruleParsers = new();
+        readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _typeRules = new();
 
         // This is the bootstrapping constructor. It exists to allow the _metaParser to be constructed.
         internal LexicalParser(Func<LexicalParser<TSemanticParser, TResult>, TSemanticParser> cstor)
         {
             _semanticParser = cstor(this);
 
-            _ruleParsers.Add(typeof(NamedRule), (IRule rule, TokenList tokens) =>
+            AddTypeRule<NamedRule>((IRule rule, TokenList tokens) =>
             {
                 var self = (NamedRule)rule;
                 var tempTokens = tokens.Fork();
-                var temp = TryParse(self.Rule, tempTokens);
+                var temp = Parse(self.Rule, tempTokens);
                 if (temp != null)
                 {
                     tokens.Merge(tempTokens);
@@ -113,7 +112,28 @@ namespace CSharpSandbox.Common
                 return null;
             });
 
-            _ruleParsers.Add(typeof(RuleSegment), (IRule rule, TokenList tokens) =>
+            AddTypeRule<NamedRule>((IRule rule, TokenList tokens) =>
+            {
+                var self = (NameRule)rule;
+                return Parse(self.Rule, tokens);
+            });
+
+
+            AddTypeRule<PatternRule>((IRule rule, TokenList tokens) =>
+            {
+                var self = (PatternRule)rule;
+                var first = tokens.First();
+                if (first.Pattern == self.Pattern)
+                {
+                    tokens.Cursor++;
+                    return new TokenNode(self, first);
+                }
+
+                return null;
+            });
+
+
+            AddTypeRule<NamedRule>((IRule rule, TokenList tokens) =>
             {
                 var self = (RuleSegment)rule;
                 switch (self.Operator)
@@ -125,7 +145,7 @@ namespace CSharpSandbox.Common
                             var nodes = new List<IParseNode>();
                             foreach (var r in self.Rules)
                             {
-                                var temp = TryParse(r!, tempTokens);
+                                var temp = Parse(r!, tempTokens);
                                 if (temp != null)
                                 {
                                     nodes.Add(temp);
@@ -150,7 +170,7 @@ namespace CSharpSandbox.Common
                             IParseNode? temp = null;
                             foreach (var r in self.Rules)
                             {
-                                temp = TryParse(r!, tempTokens);
+                                temp = Parse(r!, tempTokens);
                                 if (temp != null)
                                 {
                                     match = true;
@@ -172,7 +192,7 @@ namespace CSharpSandbox.Common
                         {
                             var tempTokens = tokens.Fork();
                             var r = self.Rules.Single();
-                            var temp = TryParse(r, tempTokens);
+                            var temp = Parse(r, tempTokens);
                             if (temp == null)
                             {
                                 return new ParseNode(self);
@@ -183,7 +203,7 @@ namespace CSharpSandbox.Common
                         {
                             var tempTokens = tokens.Fork();
                             var r = self.Rules.Single();
-                            var temp = TryParse(r, tempTokens);
+                            var temp = Parse(r, tempTokens);
                             if (temp != null)
                             {
                                 tokens.Merge(tempTokens);
@@ -205,7 +225,7 @@ namespace CSharpSandbox.Common
                             var max = repeat.Maximum;
                             for (var i = 0; max == null || i < max; i++)
                             {
-                                var temp = TryParse(r, tempTokens);
+                                var temp = Parse(r, tempTokens);
                                 if (temp != null)
                                 {
                                     nodes.Add(temp);
@@ -227,31 +247,27 @@ namespace CSharpSandbox.Common
 
                 return null;
             });
-
-            _ruleParsers.Add(typeof(NameRule), (IRule rule, TokenList tokens) =>
-            {
-                var self = (NameRule)rule;
-                return TryParse(self.Rule, tokens);
-            });
         }
 
         public LexicalParser(Func<LexicalParser<TSemanticParser, TResult>, TSemanticParser> cstor, string grammar)
             : this(cstor)
         {
             var tokens = Tokenize(grammar);
-            var node = TryParse(SemanticParser.Root, tokens);
+            var node = Parse(SemanticParser.Root, tokens);
             if (node != null)
             {
                 SemanticParser.Parse(node);
             }
         }
 
-        internal IParseNode? TryParse<TRule>(TRule rule, TokenList tokens)
-            where TRule : IRule
-            => _ruleParsers[typeof(TRule)](rule, tokens);
+        internal void AddTypeRule<TRule>(Func<IRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), rule);
 
-        internal IParseNode? TryParse(string ruleName, string input)
-            => TryParse(GetRule(ruleName), Tokenize(input));
+        internal IParseNode? Parse<TRule>(TRule rule, TokenList tokens)
+            where TRule : IRule
+            => _typeRules[typeof(TRule)](rule, tokens);
+
+        internal IParseNode? Parse(string ruleName, string input)
+            => Parse(GetRule(ruleName), Tokenize(input));
 
         internal TokenList Tokenize(string input)
         {
@@ -285,7 +301,7 @@ namespace CSharpSandbox.Common
 
         public void DefineRule(string name, string rule)
         {
-            var n = TryParse("baseExpr2", rule);
+            var n = Parse("baseExpr2", rule);
             if (n != null)
             {
                 if (n is not ParseNode node)
@@ -517,7 +533,7 @@ namespace CSharpSandbox.Common
         }
     }
 
-    internal class BootstrapLexicalParser<TResult> : LexicalParser<BootstrapSemanticParser<TResult>, LexicalParser<SemanticParser<TResult>, TResult>>
+    internal class BootstrapLexicalParser<TResult> : LexicalParser<SemanticParser<LexicalParser<SemanticParser<TResult>, TResult>>, LexicalParser<SemanticParser<TResult>, TResult>>
     {
         // This constructor replaces the `string grammar` argument to the LexiconSemanticParser constructor with
         // a series of C# instructions. We can't pass a grammar until we can parse a grammar, which is the job of
@@ -527,7 +543,7 @@ namespace CSharpSandbox.Common
         // Eventually we should be able to produce a string describing the compiled grammar,
         // which can be inserted into this comment.
         internal BootstrapLexicalParser(
-            Func<LexicalParser<BootstrapSemanticParser<TResult>, LexicalParser<SemanticParser<TResult>, TResult>>, BootstrapSemanticParser<TResult>> cstor)
+            Func<LexicalParser<SemanticParser<LexicalParser<SemanticParser<TResult>, TResult>>, LexicalParser<SemanticParser<TResult>, TResult>>, SemanticParser<LexicalParser<SemanticParser<TResult>, TResult>>> cstor)
             : base(cstor)
         {
             // lazy, as in ZZZZZ
@@ -581,10 +597,10 @@ namespace CSharpSandbox.Common
             var lexicon = R("lexicon", And(tokenSection, ruleSection));
         }
 
-        internal LexicalParser<SemanticParser<TResult>, TResult> Parse(string grammar)
+        public LexicalParser<SemanticParser<TResult>, TResult> Parse(string grammar)
         {
             var tokens = Tokenize(grammar);
-            var node = TryParse(SemanticParser.Root, tokens);
+            var node = Parse(SemanticParser.Root, tokens);
             if (node != null)
             {
                 return SemanticParser.Parse(node);
@@ -592,6 +608,21 @@ namespace CSharpSandbox.Common
 
             throw new Exception();
         }
+    }
+
+    public class BootstrapParser<TResult>
+    {
+        private readonly LexicalParser<SemanticParser<TResult>, TResult> _constructedParser;
+        private readonly BootstrapLexicalParser<TResult> _lexicalParser;
+        private readonly BootstrapSemanticParser<TResult> _semanticParser;
+
+        public BootstrapParser(LexicalParser<SemanticParser<TResult>, TResult> parser)
+        {
+            _constructedParser = parser;
+            _lexicalParser = new BootstrapLexicalParser<TResult>(lp => new BootstrapSemanticParser<TResult>(lp, parser));
+            _semanticParser = (BootstrapSemanticParser<TResult>)_lexicalParser.SemanticParser;
+        }
+        public LexicalParser<SemanticParser<TResult>, TResult> Parse(string grammar) => _lexicalParser.Parse(grammar);
     }
 
     internal class Pattern
@@ -738,20 +769,6 @@ namespace CSharpSandbox.Common
         {
             Name = name;
             Pattern = pattern;
-        }
-
-        internal static bool TryParse(PatternRule self, TokenList tokens, [NotNullWhen(true)] out IParseNode? node)
-        {
-            var first = tokens.First();
-            if (first.Pattern == self.Pattern)
-            {
-                tokens.Cursor++;
-                node = new TokenNode(self, first);
-                return true;
-            }
-
-            node = null;
-            return false;
         }
     }
 
