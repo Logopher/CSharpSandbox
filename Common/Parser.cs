@@ -20,7 +20,7 @@ namespace CSharpSandbox.Common
 
     public interface IRule
     {
-        internal bool TryParse(TokenList tokens, [NotNullWhen(true)] out IParseNode? node);
+        //internal bool TryParse(TokenList tokens, [NotNullWhen(true)] out IParseNode? node);
     }
 
     public interface INamedRule : IRule
@@ -33,7 +33,7 @@ namespace CSharpSandbox.Common
         IRule Rule { get; }
     }
 
-    public abstract class SemanticParser
+    public abstract class SemanticParser<TResult>
     {
         protected internal INamedRule Root { get; }
 
@@ -42,44 +42,55 @@ namespace CSharpSandbox.Common
             Root = root;
         }
 
-        public abstract void Parse(IParseNode node);
+        public abstract TResult Parse(IParseNode node);
     }
 
     public static class LexicalParser
     {
-        public static LexicalParser<TSemanticParser> Create<TSemanticParser>(
-            Func<LexicalParser<TSemanticParser>, TSemanticParser> cstor,
+        public static LexicalParser<TSemanticParser, TResult> Create<TSemanticParser, TResult>(
+            Func<LexicalParser<TSemanticParser, TResult>, TSemanticParser> cstor,
             string grammar)
-            where TSemanticParser : SemanticParser
+            where TSemanticParser : SemanticParser<TResult>
         {
-            return new LexicalParser<TSemanticParser>(cstor, grammar);
+            return new LexicalParser<TSemanticParser, TResult>(cstor, grammar);
         }
     }
 
-    public class LexicalParser<TSemanticParser> where TSemanticParser : SemanticParser
+    public class LexicalParser<TSemanticParser, TResult>
+        where TSemanticParser : SemanticParser<TResult>
     {
-        static readonly LexicalParser<LexiconSemanticParser> _metaParser = new(lp => new LexiconSemanticParser(lp));
-
-        // This static constructor replaces the `string grammar` argument to the LexiconSemanticParser constructor above.
-        // We can't pass a grammar until we can parse a grammar, which is the job of the _metaParser.
-        // The grammar which the _metaParser is designed to parse is a modified EBNF (Extended Backus–Naur Form),
-        // and the C# below closely mimics the resulting syntax.
+        // This static method replaces the `string grammar` argument to the LexiconSemanticParser constructor with
+        // a series of C# instructions. We can't pass a grammar until we can parse a grammar, which is the job of
+        // the _metaParser. The grammar which the _metaParser is designed to parse is a modified
+        // EBNF (Extended Backus–Naur Form), and the C# below closely mimics the resulting syntax.
         //
         // Eventually we should be able to produce a string describing the compiled grammar,
         // which can be inserted into this comment.
-        static LexicalParser()
+        //
+        // This monster of a type is best summarized as:
+        //
+        //      LexicalParser<SemanticParser<TResult1>, TResult1>
+        //          where TResult1 = LexicalParser<LexiconSemanticParser<TResult2>, TResult2>
+        // 
+        // It is designed to parse a grammar in order to construct another parser (which may parse anything,
+        // including another grammar).
+        static LexicalParser<SemanticParser<LexicalParser<LexiconSemanticParser<TResult>, TResult>>, LexicalParser<LexiconSemanticParser<TResult>, TResult>> CreateMetaParser(
+            Func<LexicalParser<LexiconSemanticParser<TResult>, TResult>, LexiconSemanticParser<TResult>> cstor)
         {
+            LexicalParser<SemanticParser<LexicalParser<LexiconSemanticParser<TResult>, TResult>>, LexicalParser<LexiconSemanticParser<TResult>, TResult>> _metaParser
+                = new(lp => new BootstrapSemanticParser<TResult>(lp, new(cstor)));
+
             // lazy, as in ZZZZZ
-            static INamedRule Z(string name) => _metaParser.GetLazyRule(name);
+            INamedRule Z(string name) => _metaParser.GetLazyRule(name);
 
             // literals
-            static PatternRule L(string name, string s) => _metaParser.DefinePattern(name, Pattern.FromLiteral(s));
+            PatternRule L(string name, string s) => _metaParser.DefinePattern(name, Pattern.FromLiteral(s));
 
             // patterns
-            static PatternRule P(string name, string s) => _metaParser.DefinePattern(name, new Pattern(s));
+            PatternRule P(string name, string s) => _metaParser.DefinePattern(name, new Pattern(s));
 
             // rules
-            static NamedRule R(string name, RuleSegment rule) => _metaParser.DefineRule(name, rule);
+            NamedRule R(string name, RuleSegment rule) => _metaParser.DefineRule(name, rule);
 
             var literal = P("literal", @"""(?:\""|[^""])+""");
             var pattern = P("pattern", @"/(?:\/|[^/])+/");
@@ -119,7 +130,7 @@ namespace CSharpSandbox.Common
 
             var lexicon = R("lexicon", And(tokenSection, ruleSection));
 
-            var sem = _metaParser.SemanticParser;
+            return _metaParser;
         }
 
         private TSemanticParser? _semanticParser;
@@ -142,24 +153,171 @@ namespace CSharpSandbox.Common
         readonly Dictionary<string, PatternRule> _patternRules = new();
         readonly Dictionary<string, INamedRule> _rules = new();
         readonly Dictionary<string, NameRule> _lazyRules = new();
+        readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _ruleParsers = new();
+        readonly BootstrapSemanticParser<TResult> _metaParser;
 
         // This is the bootstrapping constructor. It exists to allow the _metaParser to be constructed.
-        internal LexicalParser(Func<LexicalParser<TSemanticParser>, TSemanticParser> cstor)
+        internal LexicalParser(Func<LexicalParser<TSemanticParser, TResult>, TSemanticParser> cstor)
         {
+            _metaParser = CreateMetaParser(cstor);
+
             _semanticParser = cstor(this);
+
+            _ruleParsers.Add(typeof(NamedRule), (IRule rule, TokenList tokens) =>
+            {
+                var self = (NamedRule)rule;
+                var tempTokens = tokens.Fork();
+                var temp = TryParse(self.Rule, tempTokens);
+                if (temp != null)
+                {
+                    tokens.Merge(tempTokens);
+                    return new ParseNode(self.Rule, temp);
+                }
+
+                return null;
+            });
+
+            _ruleParsers.Add(typeof(RuleSegment), (IRule rule, TokenList tokens) =>
+            {
+                var self = (RuleSegment)rule;
+                switch (self.Operator)
+                {
+                    case Operator.And:
+                        {
+                            var tempTokens = tokens.Fork();
+                            var match = true;
+                            var nodes = new List<IParseNode>();
+                            foreach (var r in self.Rules)
+                            {
+                                var temp = TryParse(r!, tempTokens);
+                                if (temp != null)
+                                {
+                                    nodes.Add(temp);
+                                }
+                                else
+                                {
+                                    match = false;
+                                    break;
+                                }
+                            }
+                            if (match)
+                            {
+                                tokens.Merge(tempTokens);
+                                return new ParseNode(self, nodes.ToArray());
+                            }
+                        }
+                        break;
+                    case Operator.Or:
+                        {
+                            var tempTokens = tokens.Fork();
+                            var match = false;
+                            IParseNode? temp = null;
+                            foreach (var r in self.Rules)
+                            {
+                                temp = TryParse(r!, tempTokens);
+                                if (temp != null)
+                                {
+                                    match = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    tempTokens.Cursor = 0;
+                                }
+                            }
+                            if (match)
+                            {
+                                tokens.Merge(tempTokens);
+                                return new ParseNode(self, temp!);
+                            }
+                        }
+                        break;
+                    case Operator.Not:
+                        {
+                            var tempTokens = tokens.Fork();
+                            var r = self.Rules.Single();
+                            var temp = TryParse(r, tempTokens);
+                            if (temp == null)
+                            {
+                                return new ParseNode(self);
+                            }
+                        }
+                        break;
+                    case Operator.Option:
+                        {
+                            var tempTokens = tokens.Fork();
+                            var r = self.Rules.Single();
+                            var temp = TryParse(r, tempTokens);
+                            if (temp != null)
+                            {
+                                tokens.Merge(tempTokens);
+                                return new ParseNode(self, temp);
+                            }
+                            else
+                            {
+                                return new ParseNode(self);
+                            }
+                        }
+                    case Operator.Repeat:
+                        {
+                            var tempTokens = tokens.Fork();
+                            var r = self.Rules.Single();
+                            var nodes = new List<IParseNode>();
+
+                            var repeat = (RepeatRule)self;
+                            var min = repeat.Minimum ?? 0;
+                            var max = repeat.Maximum;
+                            for (var i = 0; max == null || i < max; i++)
+                            {
+                                var temp = TryParse(r, tempTokens);
+                                if (temp != null)
+                                {
+                                    nodes.Add(temp);
+                                }
+                                else if (i < min)
+                                {
+                                    return null;
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+
+                            tokens.Merge(tempTokens);
+                            return new ParseNode(self, nodes.ToArray());
+                        }
+                }
+
+                return null;
+            });
+
+            _ruleParsers.Add(typeof(NameRule), (IRule rule, TokenList tokens) =>
+            {
+                var self = (NameRule)rule;
+                return TryParse(self.Rule, tokens);
+            });
         }
 
-        public LexicalParser(Func<LexicalParser<TSemanticParser>, TSemanticParser> cstor, string grammar)
+        public LexicalParser(Func<LexicalParser<TSemanticParser, TResult>, TSemanticParser> cstor, string grammar)
             : this(cstor)
         {
             var tokens = Tokenize(grammar);
-            if (SemanticParser.Root.TryParse(tokens, out IParseNode? node))
+            var node = TryParse(SemanticParser.Root, tokens);
+            if (node != null)
             {
                 SemanticParser.Parse(node);
             }
         }
 
-        private TokenList Tokenize(string input)
+        internal IParseNode? TryParse<TRule>(TRule rule, TokenList tokens)
+            where TRule : IRule
+            => _ruleParsers[typeof(TRule)](rule, tokens);
+
+        private IParseNode? TryParse(string ruleName, string input)
+            => TryParse(GetRule(ruleName), Tokenize(input));
+
+        internal TokenList Tokenize(string input)
         {
             StringBuilder builder = new(input);
             TokenList result = new();
@@ -177,13 +335,6 @@ namespace CSharpSandbox.Common
             return result;
         }
 
-        private bool TryParse(string ruleName, string input, [NotNullWhen(true)] out IParseNode? node)
-        {
-            var tokens = Tokenize(input);
-
-            return GetRule(ruleName).TryParse(tokens, out node);
-        }
-
         public void DefineLiteral(string name, string literal) => DefinePattern(name, Pattern.FromLiteral(literal));
 
         public void DefinePattern(string name, string pattern) => DefinePattern(name, new Pattern(pattern));
@@ -196,9 +347,11 @@ namespace CSharpSandbox.Common
             return rule;
         }
 
+        /*
         public void DefineRule(string name, string rule)
         {
-            if (_metaParser.TryParse("baseExpr2", rule, out IParseNode? n))
+            var n = _metaParser.TryParse("baseExpr2", rule);
+            if (n != null)
             {
                 if (n is not ParseNode node)
                 {
@@ -207,6 +360,20 @@ namespace CSharpSandbox.Common
 
                 node.ToString();
             }
+        }
+        */
+
+        internal static LexicalParser<TSemanticParser, TResult> Parse<TSemanticParser, TResult>(string grammar)
+            where TSemanticParser : SemanticParser<TResult>
+        {
+            var semanticParser = _metaParser.SemanticParser;
+            var tokens = _metaParser.Tokenize(grammar);
+            if (semanticParser.Root.TryParse(tokens, out IParseNode? node))
+            {
+                return semanticParser.Parse(node);
+            }
+
+            throw new Exception();
         }
 
         internal NamedRule DefineRule(string name, RuleSegment segment)
@@ -252,52 +419,34 @@ namespace CSharpSandbox.Common
 
         internal class NameRule : INamedRule
         {
-            private readonly LexicalParser<TSemanticParser> _parser;
+            private readonly LexicalParser<TSemanticParser, TResult> _parser;
             private INamedRule? _rule;
 
             public string Name { get; }
 
             public INamedRule Rule => _rule ??= _parser.GetRule(Name);
 
-            public NameRule(LexicalParser<TSemanticParser> parser, string name)
+            public NameRule(LexicalParser<TSemanticParser, TResult> parser, string name)
             {
                 _parser = parser;
                 Name = name;
             }
-
-            public bool TryParse(TokenList tokens, [NotNullWhen(true)] out IParseNode? node) => Rule.TryParse(tokens, out node);
         }
     }
 
-    internal class LexiconSemanticParser : SemanticParser
+    internal class BootstrapSemanticParser<TResult> : LexiconSemanticParser<LexicalParser<LexiconSemanticParser<TResult>, TResult>>
     {
-        private readonly LexicalParser<LexiconSemanticParser> _parser;
-        Dictionary<INamedRule, Func<IParseNode, RuleSegment>> _directory;
+        private readonly LexicalParser<LexiconSemanticParser<TResult>, TResult> _constructedParser;
 
-        public LexiconSemanticParser(LexicalParser<LexiconSemanticParser> parser)
-            : base(parser.GetRule("lexicon"))
+        public BootstrapSemanticParser(
+            LexicalParser<SemanticParser<LexicalParser<LexiconSemanticParser<TResult>, TResult>>, LexicalParser<LexiconSemanticParser<TResult>, TResult>> metaParser,
+            LexicalParser<LexiconSemanticParser<TResult>, TResult> constructedParser)
+            : base(metaParser)
         {
-            _parser = parser;
-
-            _directory = new Dictionary<INamedRule, Func<IParseNode, RuleSegment>>
-                {
-                    { _parser.GetRule("and"), ParseAnd },
-                    { _parser.GetRule("or"), ParseOr },
-                    { _parser.GetRule("not"), ParseNot },
-                    { _parser.GetRule("option"), ParseOption },
-                    { _parser.GetRule("parens"), ParseParens },
-                    { _parser.GetRule("repeat0"), ParseRepeat0 },
-                    { _parser.GetRule("repeat1"), ParseRepeat1 },
-                    { _parser.GetRule("repeateRange"), ParseRepeatRange },
-                };
+            _constructedParser = constructedParser;
         }
 
-        RuleSegment InvokeSyntaxDirectedTranslator(INamedRule rule, IParseNode node)
-        {
-            return _directory[rule](node);
-        }
-
-        void ParseToken(IParseNode node)
+        public override void ParseToken(IParseNode node)
         {
             var pnode = (ParseNode)node;
 
@@ -309,17 +458,17 @@ namespace CSharpSandbox.Common
             switch (value.Rule.Name)
             {
                 case "literal":
-                    _parser.DefineLiteral(name, valueLex);
+                    _constructedParser.DefineLiteral(name, valueLex);
                     break;
                 case "pattern":
-                    _parser.DefinePattern(name, valueLex);
+                    _constructedParser.DefinePattern(name, valueLex);
                     break;
                 default:
                     throw new Exception();
             }
         }
 
-        void ParseRule(IParseNode node)
+        public override void ParseRule(IParseNode node)
         {
             var pnode = (ParseNode)node;
 
@@ -327,7 +476,26 @@ namespace CSharpSandbox.Common
             var name = ((TokenNode)stmt.Get(0)).Token.Lexeme;
             var value = ParseRuleSegment(stmt.Get(2));
 
-            _parser.DefineRule(name, value);
+            _constructedParser.DefineRule(name, value);
+        }
+
+        public override LexicalParser<LexiconSemanticParser<TResult>, TResult> Parse(IParseNode node)
+        {
+            var pnode = (ParseNode)node;
+            var tokens = (ParseNode)pnode.Get(0, 0, 0);
+            var rules = (ParseNode)pnode.Get(0, 1, 0);
+
+            foreach (var token in tokens.Children)
+            {
+                ParseToken(token);
+            }
+
+            foreach (var rule in rules.Children)
+            {
+                ParseRule(rule);
+            }
+
+            return _constructedParser;
         }
 
         RuleSegment ParseAnd(IParseNode node)
@@ -397,14 +565,51 @@ namespace CSharpSandbox.Common
             }
             return RuleSegment.RepeatRange(inner, min, max);
         }
+    }
 
-        RuleSegment ParseRuleSegment(IParseNode node)
+    public abstract class LexiconSemanticParser<TResult> : SemanticParser<TResult>
+    {
+        private readonly LexicalParser<SemanticParser<TResult>, TResult> _metaParser;
+        Dictionary<INamedRule, Func<IParseNode, RuleSegment>> _directory;
+
+        public LexiconSemanticParser(LexicalParser<SemanticParser<TResult>, TResult> parser)
+            : base(parser.GetRule("lexicon"))
+        {
+            _metaParser = parser;
+
+            _directory = new Dictionary<INamedRule, Func<IParseNode, RuleSegment>>();
+        }
+
+        protected void DirectSyntax(string name, Func<IParseNode, RuleSegment> mapping)
+        {
+            /*
+             
+                {
+                    { _metaParser.GetRule("and"), ParseAnd },
+                    { _metaParser.GetRule("or"), ParseOr },
+                    { _metaParser.GetRule("not"), ParseNot },
+                    { _metaParser.GetRule("option"), ParseOption },
+                    { _metaParser.GetRule("parens"), ParseParens },
+                    { _metaParser.GetRule("repeat0"), ParseRepeat0 },
+                    { _metaParser.GetRule("repeat1"), ParseRepeat1 },
+                    { _metaParser.GetRule("repeateRange"), ParseRepeatRange },
+                }
+             */
+            _directory.Add(_metaParser.GetRule("and"), mapping);
+        }
+
+        internal RuleSegment InvokeSyntaxDirectedTranslator(INamedRule rule, IParseNode node)
+        {
+            return _directory[rule](node);
+        }
+
+        protected internal RuleSegment ParseRuleSegment(IParseNode node)
         {
             if (node.Rule is NamedRule named)
             {
                 return InvokeSyntaxDirectedTranslator(named, node);
             }
-            else if (node.Rule is LexicalParser<LexiconSemanticParser>.NameRule lazy)
+            else if (node.Rule is LexicalParser<LexiconSemanticParser<TResult>, TResult>.NameRule lazy)
             {
                 return InvokeSyntaxDirectedTranslator(lazy.Rule, node);
             }
@@ -418,22 +623,8 @@ namespace CSharpSandbox.Common
             }
         }
 
-        public override void Parse(IParseNode node)
-        {
-            var pnode = (ParseNode)node;
-            var tokens = (ParseNode)pnode.Get(0, 0, 0);
-            var rules = (ParseNode)pnode.Get(0, 1, 0);
-
-            foreach (var token in tokens.Children)
-            {
-                ParseToken(token);
-            }
-
-            foreach (var rule in rules.Children)
-            {
-                ParseRule(rule);
-            }
-        }
+        public abstract void ParseToken(IParseNode node);
+        public abstract void ParseRule(IParseNode node);
     }
 
     internal class Pattern
@@ -582,13 +773,13 @@ namespace CSharpSandbox.Common
             Pattern = pattern;
         }
 
-        public bool TryParse(TokenList tokens, [NotNullWhen(true)] out IParseNode? node)
+        internal static bool TryParse(PatternRule self, TokenList tokens, [NotNullWhen(true)] out IParseNode? node)
         {
             var first = tokens.First();
-            if (first.Pattern == Pattern)
+            if (first.Pattern == self.Pattern)
             {
                 tokens.Cursor++;
-                node = new TokenNode(this, first);
+                node = new TokenNode(self, first);
                 return true;
             }
 
@@ -597,7 +788,7 @@ namespace CSharpSandbox.Common
         }
     }
 
-    internal class RuleSegment : IRule
+    public class RuleSegment : IRule
     {
         public IReadOnlyList<IRule> Rules { get; }
 
@@ -622,123 +813,6 @@ namespace CSharpSandbox.Common
         public static RuleSegment Repeat0(IRule rule) => RepeatRange(rule, 0);
 
         public static RuleSegment Repeat1(IRule rule) => RepeatRange(rule, 1);
-
-        public bool TryParse(TokenList tokens, [NotNullWhen(true)] out IParseNode? node)
-        {
-            switch (Operator)
-            {
-                case Operator.And:
-                    {
-                        var tempTokens = tokens.Fork();
-                        var match = true;
-                        var nodes = new List<IParseNode>();
-                        foreach (var rule in Rules)
-                        {
-                            if (rule!.TryParse(tempTokens, out IParseNode? temp))
-                            {
-                                nodes.Add(temp);
-                            }
-                            else
-                            {
-                                match = false;
-                                break;
-                            }
-                        }
-                        if (match)
-                        {
-                            tokens.Merge(tempTokens);
-                            node = new ParseNode(this, nodes.ToArray());
-                            return true;
-                        }
-                    }
-                    break;
-                case Operator.Or:
-                    {
-                        var tempTokens = tokens.Fork();
-                        var match = false;
-                        IParseNode? temp = null;
-                        foreach (var rule in Rules)
-                        {
-                            if (rule!.TryParse(tempTokens, out temp))
-                            {
-                                match = true;
-                                break;
-                            }
-                            else
-                            {
-                                tempTokens.Cursor = 0;
-                            }
-                        }
-                        if (match)
-                        {
-                            tokens.Merge(tempTokens);
-                            node = new ParseNode(this, temp);
-                            return true;
-                        }
-                    }
-                    break;
-                case Operator.Not:
-                    {
-                        var tempTokens = tokens.Fork();
-                        var rule = Rules.Single();
-                        if (!rule.TryParse(tempTokens, out IParseNode? _))
-                        {
-                            node = new ParseNode(this);
-                            return true;
-                        }
-                    }
-                    break;
-                case Operator.Option:
-                    {
-                        var tempTokens = tokens.Fork();
-                        var rule = Rules.Single();
-                        if (rule.TryParse(tempTokens, out IParseNode? temp))
-                        {
-                            tokens.Merge(tempTokens);
-                            node = new ParseNode(this, temp);
-                            return true;
-                        }
-                        else
-                        {
-                            node = new ParseNode(this);
-                            return true;
-                        }
-                    }
-                case Operator.Repeat:
-                    {
-                        var tempTokens = tokens.Fork();
-                        var rule = Rules.Single();
-                        var nodes = new List<IParseNode>();
-
-                        var repeat = (RepeatRule)this;
-                        var min = repeat.Minimum ?? 0;
-                        var max = repeat.Maximum;
-                        for (var i = 0; max == null || i < max; i++)
-                        {
-                            if (rule.TryParse(tempTokens, out IParseNode? temp))
-                            {
-                                nodes.Add(temp);
-                            }
-                            else if (i < min)
-                            {
-                                node = null;
-                                return false;
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-
-                        tokens.Merge(tempTokens);
-                        node = new ParseNode(this, nodes.ToArray());
-                        return true;
-                    }
-            }
-
-            node = null;
-            return false;
-        }
     }
 
     internal class RepeatRule : RuleSegment
@@ -765,20 +839,6 @@ namespace CSharpSandbox.Common
         {
             Name = name;
             Rule = rule;
-        }
-
-        public bool TryParse(TokenList tokens, [NotNullWhen(true)] out IParseNode? node)
-        {
-            var tempTokens = tokens.Fork();
-            if (Rule.TryParse(tempTokens, out IParseNode? temp))
-            {
-                tokens.Merge(tempTokens);
-                node = new ParseNode(Rule, temp);
-                return true;
-            }
-
-            node = null;
-            return false;
         }
     }
 
