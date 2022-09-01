@@ -112,7 +112,7 @@ namespace CSharpSandbox.Common
                 return null;
             });
 
-            AddTypeRule<NamedRule>((IRule rule, TokenList tokens) =>
+            AddTypeRule<NameRule>((IRule rule, TokenList tokens) =>
             {
                 var self = (NameRule)rule;
                 return Parse(self.Rule, tokens);
