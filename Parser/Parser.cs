@@ -34,10 +34,77 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
     private readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _typeRules = new();
     private readonly Func<IMetaParser, TParser> _cstor;
 
+    // This method is the MetaParser's equivalent to the Parser constructor's `string grammar` argument.
+    // We can't pass a grammar until we can parse a grammar, which is the job of the MetaParser.
+    // The grammar which the MetaParser is designed to parse is a modified EBNF (Extended Backus–Naur Form),
+    // and the C# below closely mimics the resulting syntax.
+    //
+    // Eventually we should be able to produce a string describing the compiled grammar,
+    // which can be inserted into this comment.
+    internal void ApplyBootsrapGrammar()
+    {
+        // lazy, as in ZZZZZ
+        INamedRule Z(string name) => GetLazyRule(name);
+
+        // literals
+        PatternRule L(string name, string s) => DefinePattern(name, Pattern.FromLiteral(s));
+
+        // patterns
+        PatternRule P(string name, string s) => DefinePattern(name, new Pattern(s));
+
+        // rules
+        INamedRule R(string name, RuleSegment rule)
+        {
+            DefineRule(name, rule);
+            return GetRule(name);
+        }
+
+        var literal = P("literal", @"""(?:\""|[^""])+""");
+        var pattern = P("pattern", @"/(?:\/|[^/])+/");
+        var name = P("name", "[a-zA-Z_][a-zA-Z0-9_]+");
+        var posInt = P("posInt", "[0-9]+");
+
+        var assmt = L("assmt", "=");
+        var comma = L("stmtEnd", ",");
+        var stmtEnd = L("stmtEnd", ";");
+        //var amp = L("amp", "&");
+        var pipe = L("pipe", "|");
+        var excl = L("excl", "!");
+        var lParen = L("lParen", "(");
+        var rParen = L("rParen", ")");
+        var asterisk = L("asterisk", "*");
+        var plus = L("plus", "+");
+        var lCurly = L("lRange", "{");
+        var rCurly = L("rRange", "}");
+
+        var baseExpr = R("baseExpr", Or(name, Z("parenExpr")));
+        var range = R("range", Or(And(lCurly, posInt, comma, Option(posInt), rCurly), And(lCurly, comma, posInt, rCurly)));
+        var repeatRange = R("repeatRange", And(baseExpr, range));
+        var repeat0 = R("repeat0", And(baseExpr, asterisk));
+        var repeat1 = R("repeat1", And(baseExpr, plus));
+        var notExpr = R("notExpr", And(excl, baseExpr));
+        var andExpr = R("andExpr", RepeatRange(Z("baseExpr2"), minimum: 2));
+        var orExpr = R("orExpr", And(Z("baseExpr2"), Repeat1(And(pipe, Z("baseExpr2")))));
+        var operExpr = R("operExpr", Or(notExpr, orExpr, repeatRange, repeat0, repeat1));
+        var baseExpr2 = R("baseExpr2", Or(operExpr, baseExpr));
+        var baseExpr3 = R("baseExpr3", Or(andExpr, baseExpr2));
+        R("parenExpr", And(lParen, baseExpr3, rParen));
+
+        var token = R("token", And(name, assmt, Or(literal, pattern), stmtEnd));
+        var rule = R("rule", And(name, assmt, baseExpr3, stmtEnd));
+
+        var tokenSection = R("tokenSection", RepeatRange(token));
+        var ruleSection = R("ruleSection", RepeatRange(rule));
+
+        R("lexicon", And(tokenSection, ruleSection));
+    }
+
     internal MetaParser(string rootName, Func<IMetaParser, TParser> cstor)
         : base(rootName)
     {
         _cstor = cstor;
+
+        ApplyBootsrapGrammar();
 
         DirectSyntax("and", ResolveAnd);
         DirectSyntax("or", ResolveOr);
@@ -341,7 +408,7 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
         => _typeRules[typeof(TRule)](rule, tokens);
 
     IParseNode? Parse(string ruleName, string input)
-        => Parse(GetRule(ruleName) ?? throw new Exception(), Tokenize(input));
+        => Parse(GetRule(ruleName), Tokenize(input));
 
     public void ParseRule(IParser parser, IParseNode? node)
     {
@@ -371,7 +438,7 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
 
     public void DirectSyntax(string name, Func<IParseNode, RuleSegment> mapping)
     {
-        var rule = GetRule(name) ?? throw new Exception();
+        var rule = GetRule(name);
 
         _directory.Add(rule, mapping);
     }
@@ -406,7 +473,7 @@ public abstract class Parser<TResult> : IParser<TResult>
     internal readonly Dictionary<string, NameRule> _lazyRules = new();
 
     private NamedRule? _root;
-    private IMetaParser? _metaParser;
+    private readonly IMetaParser? _metaParser;
 
     public string RootName { get; }
 
@@ -459,7 +526,7 @@ public abstract class Parser<TResult> : IParser<TResult>
 
     internal NamedRule DefineRule(string name, string rule)
     {
-        var segment = MetaParser.ParseRule(this, "baseExpr2", rule) as RuleSegment ?? throw new Exception();
+        var segment = MetaParser.ParseRule(this, "baseExpr3", rule) as RuleSegment ?? throw new Exception();
         var namedRule = new NamedRule(this, name, segment);
         _rules.Add(name, namedRule);
         return namedRule;
@@ -477,7 +544,7 @@ public abstract class Parser<TResult> : IParser<TResult>
     INamedRule IParser.DefineRule(string name, string rule) => DefinePattern(name, rule);
     INamedRule IParser.DefineRule(string name, RuleSegment segment) => DefineRule(name, segment);
 
-    public INamedRule? GetRule(string name)
+    public INamedRule GetRule(string name)
     {
         if (!_rules.TryGetValue(name, out INamedRule? rule))
         {

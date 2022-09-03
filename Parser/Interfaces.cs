@@ -12,7 +12,7 @@ public interface IParser
 
     INamedRule DefineRule(string name, RuleSegment segment);
 
-    INamedRule? GetRule(string name);
+    INamedRule GetRule(string name);
 }
 
 public interface IParser<TResult> : IParser

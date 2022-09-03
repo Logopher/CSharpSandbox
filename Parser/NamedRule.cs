@@ -24,7 +24,7 @@ internal class NameRule : INamedRule
 
     public string Name { get; }
 
-    public INamedRule Rule => _rule ??= _parser.GetRule(Name) ?? throw new Exception();
+    public INamedRule Rule => _rule ??= _parser.GetRule(Name);
 
     public NameRule(IParser parser, string name)
     {
