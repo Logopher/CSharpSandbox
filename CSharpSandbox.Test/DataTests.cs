@@ -8,6 +8,5 @@ namespace CSharpSandbox.Tests
     [TestClass]
     public class DataTests
     {
-
     }
 }

@@ -17,7 +17,8 @@ namespace CSharpSandbox.Common
         void DefineRule(string name, RuleSegment value);
     }
 
-    public interface IParserGenerator<TResult> : IParser<IParser<TResult>>
+    public interface IParserGenerator<TParser, TResult> : IParser<TParser>
+        where TParser : IParser<TResult>
     {
         public void ParseToken(IParser<TResult> parser, IParseNode node);
         public void ParseRule(IParser<TResult> parser, IParseNode node);
@@ -48,7 +49,8 @@ namespace CSharpSandbox.Common
 
     public static class Parser
     {
-        public static void Init<TResult>(Parser<TResult> parser, string grammar)
+        public static void Create<TParser, TResult>(TParser parser, string grammar)
+            where TParser : Parser<TResult>
         {
             var metaParser = new BootstrapParser<TResult>();
             metaParser.Parse(parser, grammar);
@@ -75,10 +77,6 @@ namespace CSharpSandbox.Common
         readonly Dictionary<string, INamedRule> _rules = new();
         readonly Dictionary<string, NameRule> _lazyRules = new();
         readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _typeRules = new();
-
-        internal Parser()
-        {
-        }
 
         // This is the bootstrapping constructor. It exists to allow the _metaParser to be constructed.
         internal Parser(string rootName)
@@ -126,6 +124,8 @@ namespace CSharpSandbox.Common
             AddTypeRule<RuleSegment>((IRule rule, TokenList tokens) => ParseRuleSegment((RuleSegment)rule, tokens));
         }
 
+        internal void AddTypeRule<TRule>(Func<IRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), rule);
+
         public Parser(string grammar, string root)
             : this(root)
         {
@@ -136,16 +136,16 @@ namespace CSharpSandbox.Common
         public abstract void ParseToken(TResult result, IParseNode node);
         public abstract void ParseRule(TResult result, IParseNode node);
 
-        protected abstract IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens);
+        internal IParseNode? Parse(string ruleName, string input)
+            => Parse(GetRule(ruleName), Tokenize(input));
 
-        internal void AddTypeRule<TRule>(Func<IRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), rule);
+        internal IParseNode? Parse<TRule>(TRule rule, string input)
+            where TRule : IRule
+            => Parse(rule, Tokenize(input));
 
         internal IParseNode? Parse<TRule>(TRule rule, TokenList tokens)
             where TRule : IRule
             => _typeRules[typeof(TRule)](rule, tokens);
-
-        internal IParseNode? Parse(string ruleName, string input)
-            => Parse(GetRule(ruleName), Tokenize(input));
 
         internal TokenList Tokenize(string input)
         {
@@ -244,14 +244,15 @@ namespace CSharpSandbox.Common
 
         Dictionary<INamedRule, Func<IParseNode, RuleSegment>> _directory;
 
-        protected internal INamedRule Root { get; }
+        internal INamedRule Root { get; }
 
-        protected void DirectSyntax(string name, Func<IParseNode, RuleSegment> mapping) => _directory.Add(GetRule(name), mapping);
+        public void DirectSyntax(string name, Func<IParseNode, RuleSegment> mapping) => _directory.Add(GetRule(name), mapping);
 
-        protected RuleSegment Translate(INamedRule rule, IParseNode node) => _directory[rule](node);
+        public RuleSegment Translate(INamedRule rule, IParseNode node) => _directory[rule](node);
     }
 
-    internal class BootstrapParser<TResult> : Parser<IParser<TResult>>, IParserGenerator<TResult>
+    internal class BootstrapParser<TParser, TResult> : Parser<TParser>, IParserGenerator<TParser, TResult>
+        where TParser : Parser<TResult>
     {
         public BootstrapParser()
             : base("lexicon")
@@ -354,7 +355,7 @@ namespace CSharpSandbox.Common
             }
         }
 
-        public override void ParseToken(IParser<TResult> parser, IParseNode node)
+        public void ParseToken(IParser<TResult> parser, IParseNode node)
         {
             var pnode = (ParseNode)node;
 
@@ -376,7 +377,7 @@ namespace CSharpSandbox.Common
             }
         }
 
-        public override void ParseRule(IParser<TResult> parser, IParseNode node)
+        public void ParseRule(IParseNode node)
         {
             var pnode = (ParseNode)node;
 
@@ -387,7 +388,7 @@ namespace CSharpSandbox.Common
             parser.DefineRule(name, value);
         }
 
-        public override void Parse(IParser<TResult> parser, IParseNode? node)
+        public override void Parse(IParseNode? node)
         {
             var pnode = (ParseNode)node;
             var tokens = (ParseNode)pnode.Get(0, 0, 0);
@@ -403,7 +404,7 @@ namespace CSharpSandbox.Common
                 ParseRule(parser, rule);
             }
         }
-        public override void Parse(IParser<TResult> parser, string grammar)
+        public override void Parse(string grammar)
         {
             var tokens = Tokenize(grammar);
             var parseTree = Parse(Root, tokens);
