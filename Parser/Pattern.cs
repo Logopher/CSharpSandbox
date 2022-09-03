@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace CSharpSandbox.Parser;
 
-public class Pattern
+public sealed class Pattern
 {
     public Regex Regex { get; }
 

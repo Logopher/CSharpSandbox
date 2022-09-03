@@ -1,6 +1,6 @@
 ﻿namespace CSharpSandbox.Parser;
 
-public class Token
+public sealed class Token
 {
     public Pattern Pattern { get; }
 

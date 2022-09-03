@@ -2,6 +2,8 @@
 
 public interface IParser
 {
+    Type ResultType { get; }
+
     string RootName { get; }
 
     INamedRule DefineLiteral(string name, string literal);
@@ -13,10 +15,6 @@ public interface IParser
     INamedRule DefineRule(string name, RuleSegment segment);
 
     INamedRule GetRule(string name);
-}
-
-public interface IParser<TResult> : IParser
-{
 }
 
 public interface IMetaParser : IParser

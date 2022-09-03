@@ -2,7 +2,7 @@
 
 namespace CSharpSandbox.Parser;
 
-public class TokenList : IList<Token>
+public sealed class TokenList : IList<Token>
 {
     readonly List<Token> _tokens = new();
 
