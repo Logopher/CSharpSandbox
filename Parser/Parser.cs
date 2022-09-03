@@ -8,10 +8,10 @@ namespace CSharpSandbox.Parser
 {
     public static class Parser
     {
-        public static TParser Generate<TParser, TResult>(string grammar, string rootName)
-            where TParser : Parser<TResult>, new()
+        public static TParser Generate<TParser, TResult>(string grammar, string rootName, Func<IMetaParser, TParser> cstor)
+            where TParser : Parser<TResult>
         {
-            var metaParser = MetaParser.Get<TParser, TResult>(rootName);
+            var metaParser = MetaParser.Get<TParser, TResult>(rootName, cstor);
 
             return metaParser.Parse(grammar);
         }
@@ -19,20 +19,26 @@ namespace CSharpSandbox.Parser
 
     internal static class MetaParser
     {
-        public static MetaParser<TParser, TResult> Get<TParser, TResult>(string rootName = "lexicon")
-            where TParser : Parser<TResult>, new()
-            => new(rootName);
+        public static MetaParser<TParser, TResult> Get<TParser, TResult>(string rootName, Func<IMetaParser, TParser> cstor)
+            where TParser : Parser<TResult>
+            => new(rootName, cstor);
+        public static MetaParser<TParser, TResult> Get<TParser, TResult>(Func<IMetaParser, TParser> cstor)
+            where TParser : Parser<TResult>
+            => new("lexicon", cstor);
     }
 
     internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
-        where TParser : Parser<TResult>, new()
+        where TParser : Parser<TResult>
     {
-        readonly Dictionary<INamedRule, Func<IParseNode, RuleSegment>> _directory = new();
-        readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _typeRules = new();
+        private readonly Dictionary<INamedRule, Func<IParseNode, RuleSegment>> _directory = new();
+        private readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _typeRules = new();
+        private readonly Func<IMetaParser, TParser> _cstor;
 
-        internal MetaParser(string rootName)
+        internal MetaParser(string rootName, Func<IMetaParser, TParser> cstor)
             : base(rootName)
         {
+            _cstor = cstor;
+
             AddTypeRule<NamedRule>((IRule rule, TokenList tokens) =>
             {
                 var self = (NamedRule)rule;
@@ -203,10 +209,7 @@ namespace CSharpSandbox.Parser
 
         public override TParser Parse(string grammar)
         {
-            var parser = new TParser
-            {
-                MetaParser = this
-            };
+            var parser = _cstor(this);
 
             var parseTree = Parse(Root, grammar) as ParseNode ?? throw new Exception();
 
@@ -333,23 +336,10 @@ namespace CSharpSandbox.Parser
         internal readonly Dictionary<string, NameRule> _lazyRules = new();
 
         private NamedRule? _root;
-        private IMetaParser _metaParser;
 
         public string RootName { get; }
 
-        protected internal IMetaParser MetaParser
-        {
-            get => _metaParser;
-            internal set
-            {
-                if (_metaParser != null)
-                {
-                    throw new InvalidOperationException();
-                }
-
-                _metaParser = value;
-            }
-        }
+        protected internal IMetaParser? MetaParser { get; }
 
         internal NamedRule Root
         {
@@ -366,12 +356,16 @@ namespace CSharpSandbox.Parser
             }
         }
 
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public Parser(string rootName)
+        internal Parser(string rootName)
         {
             RootName = rootName;
         }
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
+        public Parser(IMetaParser metaParser, string rootName)
+            : this(rootName)
+        {
+            MetaParser = metaParser;
+        }
 
         internal PatternRule DefinePattern(string name, Pattern pattern)
         {
@@ -391,22 +385,30 @@ namespace CSharpSandbox.Parser
             return rule;
         }
 
-        INamedRule IParser.DefineLiteral(string name, string pattern) => DefineLiteral(name, pattern);
-        INamedRule IParser.DefinePattern(string name, string pattern) => DefinePattern(name, pattern);
-        public INamedRule DefineRule(string name, RuleSegment segment)
+        internal NamedRule DefineRule(string name, string rule)
+        {
+            if (MetaParser == null)
+            {
+                throw new InvalidOperationException();
+            }
+
+            var segment = MetaParser.ParseRule(this, "baseExpr2", rule) as RuleSegment ?? throw new Exception();
+            var namedRule = new NamedRule(this, name, segment);
+            _rules.Add(name, namedRule);
+            return namedRule;
+        }
+
+        internal NamedRule DefineRule(string name, RuleSegment segment)
         {
             var rule = new NamedRule(this, name, segment);
             _rules.Add(name, rule);
             return rule;
         }
 
-        public INamedRule DefineRule(string name, string rule)
-        {
-            var segment = MetaParser.ParseRule(this, "baseExpr2", rule) as RuleSegment ?? throw new Exception();
-            var namedRule = new NamedRule(this, name, segment);
-            _rules.Add(name, namedRule);
-            return namedRule;
-        }
+        INamedRule IParser.DefineLiteral(string name, string pattern) => DefineLiteral(name, pattern);
+        INamedRule IParser.DefinePattern(string name, string pattern) => DefinePattern(name, pattern);
+        INamedRule IParser.DefineRule(string name, string rule) => DefinePattern(name, rule);
+        INamedRule IParser.DefineRule(string name, RuleSegment segment) => DefineRule(name, segment);
 
         public INamedRule? GetRule(string name)
         {

@@ -10,8 +10,8 @@ namespace CSharpSandbox.Tests
 {
     class StimulusParser : Parser<InputGestureTree.Stimulus[]>
     {
-        public StimulusParser()
-            : base("gesture")
+        public StimulusParser(IMetaParser metaParser)
+            : base(metaParser, "gesture")
         {
             
         }
