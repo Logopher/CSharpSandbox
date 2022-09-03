@@ -24,7 +24,7 @@ namespace CSharpSandbox.Parser
             => new(rootName);
     }
 
-    internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser<TParser, TResult>
+    internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
         where TParser : Parser<TResult>, new()
     {
         readonly Dictionary<INamedRule, Func<IParseNode, RuleSegment>> _directory = new();
@@ -208,22 +208,52 @@ namespace CSharpSandbox.Parser
                 MetaParser = this
             };
 
-            var parseTree = Parse(Root, grammar);
+            var parseTree = Parse(Root, grammar) as ParseNode ?? throw new Exception();
 
-            var pnode = parseTree as ParseNode ?? throw new Exception();
-
-            var tokens = pnode.Get(0, 0, 0) as ParseNode ?? throw new Exception();
-
-            var rules = pnode.Get(0, 1, 0) as ParseNode ?? throw new Exception();
+            var tokens = parseTree.Get(0, 0, 0) as ParseNode ?? throw new Exception();
 
             foreach (var token in tokens.Children)
             {
-                ParseToken(parser, token);
+                var pnode = token as ParseNode ?? throw new Exception();
+
+                var stmt = pnode.Get(0) as ParseNode ?? throw new Exception();
+
+                var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
+                    .Token.Lexeme;
+
+                var value = stmt.Get(2, 0) as TokenNode ?? throw new Exception();
+
+                var valueLex = value.Token.Lexeme;
+
+                valueLex = valueLex[1..^1];
+                switch (value.Rule.Name)
+                {
+                    case "literal":
+                        parser.DefineLiteral(name, valueLex);
+                        break;
+                    case "pattern":
+                        parser.DefinePattern(name, valueLex);
+                        break;
+                    default:
+                        throw new Exception();
+                }
             }
+
+            var rules = parseTree.Get(0, 1, 0) as ParseNode ?? throw new Exception();
 
             foreach (var rule in rules.Children)
             {
-                ParseRule(parser, rule);
+                var pnode = rule as ParseNode ?? throw new Exception();
+
+                var stmt = pnode.Get(0) as ParseNode ?? throw new Exception();
+
+                var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
+                    .Token.Lexeme;
+
+                var value = stmt.Get(2) as ParseNode ?? throw new Exception();
+                var segment = ResolveRuleSegment(value);
+
+                parser.DefineRule(name, segment);
             }
 
             return parser;
@@ -240,34 +270,7 @@ namespace CSharpSandbox.Parser
         IParseNode? Parse(string ruleName, string input)
             => Parse(GetRule(ruleName) ?? throw new Exception(), Tokenize(input));
 
-        public void ParseToken(TParser parser, IParseNode? node)
-        {
-            var pnode = node as ParseNode ?? throw new Exception();
-
-            var stmt = pnode.Get(0) as ParseNode ?? throw new Exception();
-
-            var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
-                .Token.Lexeme;
-
-            var value = stmt.Get(2, 0) as TokenNode ?? throw new Exception();
-
-            var valueLex = value.Token.Lexeme;
-
-            valueLex = valueLex[1..^1];
-            switch (value.Rule.Name)
-            {
-                case "literal":
-                    parser.DefineLiteral(name, valueLex);
-                    break;
-                case "pattern":
-                    parser.DefinePattern(name, valueLex);
-                    break;
-                default:
-                    throw new Exception();
-            }
-        }
-
-        public void ParseRule(TParser parser, IParseNode? node)
+        public void ParseRule(IParser parser, IParseNode? node)
         {
             var pnode = node as ParseNode ?? throw new Exception();
 

@@ -24,13 +24,6 @@ public interface IMetaParser : IParser
     IRule ParseRule(IParser parser, string ruleName, string rule);
 }
 
-internal interface IMetaParser<TParser, TResult> : IMetaParser
-    where TParser : Parser<TResult>, new()
-{
-    void ParseToken(TParser parser, IParseNode node);
-    void ParseRule(TParser parser, IParseNode node);
-}
-
 public enum Operator
 {
     And,
