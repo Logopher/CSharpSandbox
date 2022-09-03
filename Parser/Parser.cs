@@ -38,7 +38,7 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
         : base(rootName)
     {
         _cstor = cstor;
-        
+
         void addTypeRule<TRule>(Func<TRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), (r, l) => rule((TRule)r, l));
 
         addTypeRule((NamedRule self, TokenList tokens) =>
@@ -333,10 +333,11 @@ public abstract class Parser<TResult> : IParser<TResult>
     internal readonly Dictionary<string, NameRule> _lazyRules = new();
 
     private NamedRule? _root;
+    private IMetaParser? _metaParser;
 
     public string RootName { get; }
 
-    protected internal IMetaParser? MetaParser { get; }
+    protected internal IMetaParser MetaParser => _metaParser ?? throw new Exception();
 
     internal NamedRule Root
     {
@@ -353,15 +354,16 @@ public abstract class Parser<TResult> : IParser<TResult>
         }
     }
 
-    internal Parser(string rootName)
+    public Parser(IMetaParser metaParser, string rootName)
     {
+        _metaParser = metaParser;
         RootName = rootName;
     }
 
-    public Parser(IMetaParser metaParser, string rootName)
-        : this(rootName)
+    internal Parser(string rootName)
     {
-        MetaParser = metaParser;
+        _metaParser = this as IMetaParser ?? throw new Exception();
+        RootName = rootName;
     }
 
     internal PatternRule DefinePattern(string name, Pattern pattern)
@@ -384,11 +386,6 @@ public abstract class Parser<TResult> : IParser<TResult>
 
     internal NamedRule DefineRule(string name, string rule)
     {
-        if (MetaParser == null)
-        {
-            throw new InvalidOperationException();
-        }
-
         var segment = MetaParser.ParseRule(this, "baseExpr2", rule) as RuleSegment ?? throw new Exception();
         var namedRule = new NamedRule(this, name, segment);
         _rules.Add(name, namedRule);
