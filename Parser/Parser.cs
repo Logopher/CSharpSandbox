@@ -39,6 +39,15 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
     {
         _cstor = cstor;
 
+        DirectSyntax("and", ResolveAnd);
+        DirectSyntax("or", ResolveOr);
+        DirectSyntax("not", ResolveNot);
+        DirectSyntax("option", ResolveOption);
+        DirectSyntax("parens", ResolveParens);
+        DirectSyntax("repeat0", ResolveRepeat0);
+        DirectSyntax("repeat1", ResolveRepeat1);
+        DirectSyntax("repeateRange", ResolveRepeatRange);
+
         void addTypeRule<TRule>(Func<TRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), (r, l) => rule((TRule)r, l));
 
         addTypeRule((NamedRule self, TokenList tokens) =>
@@ -54,11 +63,7 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
             return null;
         });
 
-        addTypeRule((NameRule self, TokenList tokens) =>
-        {
-            return Parse(self.Rule, tokens);
-        });
-
+        addTypeRule((NameRule self, TokenList tokens) => Parse(self.Rule, tokens));
 
         addTypeRule((PatternRule self, TokenList tokens) =>
         {
@@ -72,8 +77,76 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
             return null;
         });
 
-
         addTypeRule((RuleSegment self, TokenList tokens) => ParseRuleSegment(self, tokens));
+    }
+
+    RuleSegment ResolveAnd(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        return RuleSegment.And(this, pnode.Children.Select(ResolveRuleSegment).ToArray());
+    }
+
+    RuleSegment ResolveOr(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        return RuleSegment.Or(this, pnode.Children.Select(ResolveRuleSegment).ToArray());
+    }
+
+    RuleSegment ResolveNot(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        return RuleSegment.Not(this, ResolveRuleSegment(pnode.Children.Single()));
+    }
+
+    RuleSegment ResolveOption(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        return RuleSegment.Option(this, ResolveRuleSegment(pnode.Children.Single()));
+    }
+
+    RuleSegment ResolveParens(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        return ResolveRuleSegment(pnode.Children.Single());
+    }
+
+    RuleSegment ResolveRepeat0(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        return RuleSegment.Repeat0(this, ResolveRuleSegment(pnode.Children[0]));
+    }
+
+    RuleSegment ResolveRepeat1(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        return RuleSegment.Repeat1(this, ResolveRuleSegment(pnode.Children[0]));
+    }
+
+    RuleSegment ResolveRepeatRange(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        var inner = pnode.Get(0, 0) as ParseNode ?? throw new Exception();
+        var innerRule = ResolveRuleSegment(inner);
+
+        var range = pnode.Get(0, 1, 0) as ParseNode ?? throw new Exception();
+        var (_, commaIndex) = range.Children
+            .Select((n, i) => (n, i))
+            .First(tup => tup.n is TokenNode t && t.Token.Lexeme == ",");
+
+        var minNode = (TokenNode)range.Children[commaIndex - 1];
+        int? min = null;
+        if (minNode.Token.Lexeme != "{")
+        {
+            min = int.Parse(minNode.Token.Lexeme);
+        }
+
+        var maxNode = (TokenNode)range.Children[commaIndex + 1];
+        int? max = null;
+        if (maxNode.Token.Lexeme != "}")
+        {
+            max = int.Parse(maxNode.Token.Lexeme);
+        }
+        return RuleSegment.RepeatRange(this, innerRule, min, max);
     }
 
     protected override IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens)
