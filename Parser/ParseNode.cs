@@ -42,13 +42,26 @@ internal class ParseNode : IParseNode
 
     public IParseNode? Get(params int[] path)
     {
-        if (1 < path.Length)
+        var first = path[0];
+        var rest = path[1..];
+        if (Children.Count <= first)
         {
-            return ((ParseNode)Children[path[0]]).Get(path[1..]);
+            throw new Exception();
+        }
+
+        var child = Children[first];
+        if (0 < rest.Length)
+        {
+            if (child is not ParseNode pnode)
+            {
+                throw new Exception();
+            }
+
+            return pnode.Get(rest);
         }
         else
         {
-            return Children[path[0]];
+            return child;
         }
     }
 }
