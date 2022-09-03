@@ -38,8 +38,10 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
         : base(rootName)
     {
         _cstor = cstor;
+        
+        void addTypeRule<TRule>(Func<TRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), (r, l) => rule((TRule)r, l));
 
-        AddTypeRule((NamedRule self, TokenList tokens) =>
+        addTypeRule((NamedRule self, TokenList tokens) =>
         {
             var tempTokens = tokens.Fork();
             var temp = Parse(self.Rule, tempTokens);
@@ -52,13 +54,13 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
             return null;
         });
 
-        AddTypeRule((NameRule self, TokenList tokens) =>
+        addTypeRule((NameRule self, TokenList tokens) =>
         {
             return Parse(self.Rule, tokens);
         });
 
 
-        AddTypeRule((PatternRule self, TokenList tokens) =>
+        addTypeRule((PatternRule self, TokenList tokens) =>
         {
             var first = tokens.First();
             if (first.Pattern == self.Pattern)
@@ -71,7 +73,7 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
         });
 
 
-        AddTypeRule((RuleSegment self, TokenList tokens) => ParseRuleSegment(self, tokens));
+        addTypeRule((RuleSegment self, TokenList tokens) => ParseRuleSegment(self, tokens));
     }
 
     protected override IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens)
@@ -187,8 +189,6 @@ internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
 
         return null;
     }
-
-    private void AddTypeRule<TRule>(Func<TRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), (r, l) => rule((TRule)r, l));
 
     internal RuleSegment And(params IRule[] rules) => RuleSegment.And(this, rules);
 
