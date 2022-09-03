@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Parser\Parser.csproj" />
+    <ProjectReference Include="..\Parser\Parsing.csproj" />
     <ProjectReference Include="..\Shells\Shells.csproj" />
   </ItemGroup>
 

@@ -1,4 +1,4 @@
-﻿using CSharpSandbox.Parser;
+﻿using CSharpSandbox.Parsing;
 using CSharpSandbox.Wpf.Gestures;
 using System;
 using System.Collections.Generic;
@@ -13,7 +13,7 @@ namespace CSharpSandbox.Tests
         public StimulusParser(IMetaParser metaParser)
             : base(metaParser, "gesture")
         {
-            
+
         }
 
         public override InputGestureTree.Stimulus[] Parse(string input)
@@ -27,12 +27,24 @@ namespace CSharpSandbox.Tests
         }
     }
 
-    internal class WpfTests
+    [TestClass]
+    public class WpfTests
     {
         [TestMethod]
-        void ParseInputGestures()
+        public void ParseInputGestures()
         {
+            var grammar = @"
+modifier = /Ctrl|Alt|Shift|Windows/;
+plus = ""+"";
+key = /(?:F[1-9][0-9]?|[A-Z0-9!@#$%^& .\\`""'~_()[]{}?=+\/*-])/;
 
+chord = (modifier plus)* key;
+gesture = chord+;
+";
+
+            var parser = Parser.Generate<StimulusParser, InputGestureTree.Stimulus[]>(grammar, "gesture", mp => new StimulusParser(mp));
+
+            var stimuli = parser.Parse("Ctrl+A Alt+B C");
         }
     }
 }
