@@ -13,7 +13,7 @@ namespace CSharpSandbox.Tests
         [TestMethod]
         void LexicalAnalysis()
         {
-            var parser = new Parser();
+            //var parser = new Parser();
         }
     }
 }

@@ -8,27 +8,31 @@ namespace CSharpSandbox.Parser
 {
     internal class NamedRule : INamedRule
     {
+        internal readonly IParser _parser;
+
         public string Name { get; }
 
         public RuleSegment Rule { get; }
 
-        public NamedRule(string name, RuleSegment rule)
+        public NamedRule(IParser parser, string name, RuleSegment rule)
         {
+            _parser = parser;
+
             Name = name;
             Rule = rule;
         }
     }
 
-    internal class NameRule<TResult> : INamedRule
+    internal class NameRule : INamedRule
     {
-        private readonly IParser<TResult> _parser;
+        private readonly IParser _parser;
         private INamedRule? _rule;
 
         public string Name { get; }
 
-        public INamedRule Rule => _rule ??= _parser.GetRule(Name);
+        public INamedRule Rule => _rule ??= _parser.GetRule(Name) ?? throw new Exception();
 
-        public NameRule(IParser<TResult> parser, string name)
+        public NameRule(IParser parser, string name)
         {
             _parser = parser;
             Name = name;

@@ -47,9 +47,9 @@ namespace CSharpSandbox.Parser
                 return null;
             });
 
-            AddTypeRule<NameRule<TResult>>((IRule rule, TokenList tokens) =>
+            AddTypeRule<NameRule>((IRule rule, TokenList tokens) =>
             {
-                var self = (NameRule<TResult>)rule;
+                var self = (NameRule)rule;
                 return Parse(self.Rule, tokens);
             });
 
@@ -187,19 +187,19 @@ namespace CSharpSandbox.Parser
 
         private void AddTypeRule<TRule>(Func<IRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), rule);
 
-        internal static RuleSegment And(params IRule[] rules) => RuleSegment.And(rules);
+        internal RuleSegment And(params IRule[] rules) => RuleSegment.And(this, rules);
 
-        internal static RuleSegment Or(params IRule[] rules) => RuleSegment.Or(rules);
+        internal RuleSegment Or(params IRule[] rules) => RuleSegment.Or(this, rules);
 
-        internal static RuleSegment Not(IRule rule) => RuleSegment.Not(rule);
+        internal RuleSegment Not(IRule rule) => RuleSegment.Not(this, rule);
 
-        internal static RuleSegment Option(IRule rule) => RuleSegment.Option(rule);
+        internal RuleSegment Option(IRule rule) => RuleSegment.Option(this, rule);
 
-        internal static RuleSegment RepeatRange(IRule rule, int? minimum = null, int? maximum = null) => RuleSegment.RepeatRange(rule, minimum, maximum);
+        internal RuleSegment RepeatRange(IRule rule, int? minimum = null, int? maximum = null) => RuleSegment.RepeatRange(this, rule, minimum, maximum);
 
-        internal static RuleSegment Repeat0(IRule rule) => RepeatRange(rule, 0);
+        internal RuleSegment Repeat0(IRule rule) => RuleSegment.RepeatRange(this, rule, 0);
 
-        internal static RuleSegment Repeat1(IRule rule) => RepeatRange(rule, 1);
+        internal RuleSegment Repeat1(IRule rule) => RuleSegment.RepeatRange(this, rule, 1);
 
         public override TParser Parse(string grammar)
         {
@@ -308,7 +308,7 @@ namespace CSharpSandbox.Parser
             {
                 return Translate(named, node);
             }
-            else if (node.Rule is NameRule<TResult> lazy)
+            else if (node.Rule is NameRule lazy)
             {
                 return Translate(lazy.Rule, node);
             }
@@ -327,7 +327,7 @@ namespace CSharpSandbox.Parser
     {
         internal readonly Dictionary<string, PatternRule> _patternRules = new();
         internal readonly Dictionary<string, INamedRule> _rules = new();
-        internal readonly Dictionary<string, NameRule<TResult>> _lazyRules = new();
+        internal readonly Dictionary<string, NameRule> _lazyRules = new();
 
         private NamedRule? _root;
         private IMetaParser _metaParser;
@@ -354,11 +354,7 @@ namespace CSharpSandbox.Parser
             {
                 if (_root == null)
                 {
-                    var rule = GetRule(RootName);
-                    if (rule is not NamedRule namedRule)
-                    {
-                        throw new InvalidOperationException();
-                    }
+                    var namedRule = GetRule(RootName) as NamedRule ?? throw new InvalidOperationException();
 
                     _root = namedRule;
                 }
@@ -376,7 +372,7 @@ namespace CSharpSandbox.Parser
 
         internal PatternRule DefinePattern(string name, Pattern pattern)
         {
-            var rule = new PatternRule(name, pattern);
+            var rule = new PatternRule(this, name, pattern);
             _patternRules.Add(name, rule);
             _rules.Add(name, rule);
             return rule;
@@ -386,7 +382,7 @@ namespace CSharpSandbox.Parser
 
         internal PatternRule DefinePattern(string name, string pattern)
         {
-            var rule = new PatternRule(name, new Pattern(pattern));
+            var rule = new PatternRule(this, name, new Pattern(pattern));
             _patternRules.Add(name, rule);
             _rules.Add(name, rule);
             return rule;
@@ -396,7 +392,7 @@ namespace CSharpSandbox.Parser
         INamedRule IParser.DefinePattern(string name, string pattern) => DefinePattern(name, pattern);
         public INamedRule DefineRule(string name, RuleSegment segment)
         {
-            var rule = new NamedRule(name, segment);
+            var rule = new NamedRule(this, name, segment);
             _rules.Add(name, rule);
             return rule;
         }
@@ -404,7 +400,7 @@ namespace CSharpSandbox.Parser
         public INamedRule DefineRule(string name, string rule)
         {
             var segment = MetaParser.ParseRule(this, "baseExpr2", rule) as RuleSegment ?? throw new Exception();
-            var namedRule = new NamedRule(name, segment);
+            var namedRule = new NamedRule(this, name, segment);
             _rules.Add(name, namedRule);
             return namedRule;
         }
@@ -414,6 +410,16 @@ namespace CSharpSandbox.Parser
             if (!_rules.TryGetValue(name, out INamedRule? rule))
             {
                 throw new KeyNotFoundException();
+            }
+            return rule;
+        }
+
+        internal NameRule GetLazyRule(string name)
+        {
+            if (!_lazyRules.TryGetValue(name, out NameRule? rule))
+            {
+                rule = new NameRule(this, name);
+                _lazyRules.Add(name, rule);
             }
             return rule;
         }

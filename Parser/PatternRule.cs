@@ -8,11 +8,14 @@ namespace CSharpSandbox.Parser
 {
     internal class PatternRule : INamedRule
     {
+        internal readonly IParser _parser;
         public string Name { get; }
         public Pattern Pattern { get; }
 
-        public PatternRule(string name, Pattern pattern)
+        public PatternRule(IParser parser, string name, Pattern pattern)
         {
+            _parser = parser;
+
             Name = name;
             Pattern = pattern;
         }
