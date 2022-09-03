@@ -275,7 +275,7 @@ namespace CSharpSandbox.Parser
             var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
                 .Token.Lexeme;
             var value = stmt.Get(2) as ParseNode ?? throw new Exception();
-            var rule = ParseRuleSegment(value);
+            var rule = ResolveRuleSegment(value);
 
             parser.DefineRule(name, rule);
         }
@@ -286,11 +286,9 @@ namespace CSharpSandbox.Parser
 
             var parseTree = Parse(namedRule, input) as ParseNode ?? throw new Exception();
 
-            var ruleSegment = ParseRuleSegment(parseTree);
+            var ruleSegment = ResolveRuleSegment(parseTree);
 
-            parser.DefineRule(ruleName, ruleSegment);
-
-            var result = parser.GetRule(ruleName) ?? throw new Exception();
+            var result = parser.DefineRule(ruleName, ruleSegment);
 
             return result;
         }
@@ -304,7 +302,7 @@ namespace CSharpSandbox.Parser
 
         public RuleSegment Translate(INamedRule rule, IParseNode node) => _directory[rule](node);
 
-        public RuleSegment ParseRuleSegment(IParseNode node)
+        public RuleSegment ResolveRuleSegment(IParseNode node)
         {
             if (node.Rule is NamedRule named)
             {
