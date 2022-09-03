@@ -1,4 +1,4 @@
-﻿namespace CSharpSandbox.Parser;
+﻿namespace CSharpSandbox.Parsing;
 
 public class RuleSegment : IRule
 {

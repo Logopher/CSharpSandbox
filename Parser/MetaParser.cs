@@ -4,16 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CSharpSandbox.Parser
+namespace CSharpSandbox.Parsing
 {
     internal static class MetaParser
     {
-        public static MetaParser<TParser, TResult> Get<TParser, TResult>(string rootName, Func<IMetaParser, TParser> cstor)
-            where TParser : Parser<TResult>
-            => new(rootName, cstor);
         public static MetaParser<TParser, TResult> Get<TParser, TResult>(Func<IMetaParser, TParser> cstor)
             where TParser : Parser<TResult>
-            => new("lexicon", cstor);
+            => new(cstor);
     }
 
     internal class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser
@@ -48,17 +45,18 @@ namespace CSharpSandbox.Parser
                 return GetRule(name);
             }
 
-            var literal = P("literal", @"""(?:\""|[^""])+""");
-            var pattern = P("pattern", @"/(?:\/|[^/])+/");
+            var literal = P("literal", @"""(?:\\""|[^""])+""");
+            var pattern = P("pattern", @"/(?:\\/|[^/])+/");
             var name = P("name", "[a-zA-Z_][a-zA-Z0-9_]+");
             var posInt = P("posInt", "[0-9]+");
 
             var assmt = L("assmt", "=");
-            var comma = L("stmtEnd", ",");
+            var comma = L("comma", ",");
             var stmtEnd = L("stmtEnd", ";");
             //var amp = L("amp", "&");
             var pipe = L("pipe", "|");
             var excl = L("excl", "!");
+            var query = L("query", "?");
             var lParen = L("lParen", "(");
             var rParen = L("rParen", ")");
             var asterisk = L("asterisk", "*");
@@ -71,6 +69,7 @@ namespace CSharpSandbox.Parser
             var repeatRange = R("repeatRange", And(baseExpr, range));
             var repeat0 = R("repeat0", And(baseExpr, asterisk));
             var repeat1 = R("repeat1", And(baseExpr, plus));
+            var option = R("option", And(baseExpr, query));
             var notExpr = R("notExpr", And(excl, baseExpr));
             var andExpr = R("andExpr", RepeatRange(Z("baseExpr2"), minimum: 2));
             var orExpr = R("orExpr", And(Z("baseExpr2"), Repeat1(And(pipe, Z("baseExpr2")))));
@@ -88,21 +87,21 @@ namespace CSharpSandbox.Parser
             R("lexicon", And(tokenSection, ruleSection));
         }
 
-        internal MetaParser(string rootName, Func<IMetaParser, TParser> cstor)
-            : base(rootName)
+        internal MetaParser(Func<IMetaParser, TParser> cstor)
+            : base("lexicon")
         {
             _cstor = cstor;
 
             ApplyBootsrapGrammar();
 
-            DirectSyntax("and", ResolveAnd);
-            DirectSyntax("or", ResolveOr);
-            DirectSyntax("not", ResolveNot);
+            DirectSyntax("andExpr", ResolveAnd);
+            DirectSyntax("orExpr", ResolveOr);
+            DirectSyntax("notExpr", ResolveNot);
             DirectSyntax("option", ResolveOption);
-            DirectSyntax("parens", ResolveParens);
+            DirectSyntax("parenExpr", ResolveParens);
             DirectSyntax("repeat0", ResolveRepeat0);
             DirectSyntax("repeat1", ResolveRepeat1);
-            DirectSyntax("repeateRange", ResolveRepeatRange);
+            DirectSyntax("repeatRange", ResolveRepeatRange);
 
             void addTypeRule<TRule>(Func<TRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), (r, l) => rule((TRule)r, l));
 
@@ -113,7 +112,7 @@ namespace CSharpSandbox.Parser
                 if (temp != null)
                 {
                     tokens.Merge(tempTokens);
-                    return new ParseNode(self.Rule, temp);
+                    return new ParseNode(self, temp);
                 }
 
                 return null;
@@ -134,6 +133,8 @@ namespace CSharpSandbox.Parser
             });
 
             addTypeRule((RuleSegment self, TokenList tokens) => ParseRuleSegment(self, tokens));
+
+            addTypeRule((RepeatRule self, TokenList tokens) => ParseRuleSegment(self, tokens));
         }
 
         RuleSegment ResolveAnd(IParseNode node)
@@ -390,11 +391,11 @@ namespace CSharpSandbox.Parser
 
         IParseNode? Parse<TRule>(TRule rule, string input)
             where TRule : IRule
-            => _typeRules[typeof(TRule)](rule, Tokenize(input));
+            => _typeRules[rule.GetType()](rule, Tokenize(input));
 
         IParseNode? Parse<TRule>(TRule rule, TokenList tokens)
             where TRule : IRule
-            => _typeRules[typeof(TRule)](rule, tokens);
+            => _typeRules[rule.GetType()](rule, tokens);
 
         IParseNode? Parse(string ruleName, string input)
             => Parse(GetRule(ruleName), Tokenize(input));

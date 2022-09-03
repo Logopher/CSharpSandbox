@@ -2,28 +2,29 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace CSharpSandbox.Parser;
+namespace CSharpSandbox.Parsing;
 
 public sealed class Pattern
 {
-    public Regex Regex { get; }
+    public Regex Regexp { get; }
 
     public static Pattern FromLiteral(string s) => new(Regex.Escape(s));
 
-    public Pattern(string regex)
+    public Pattern(string regexp)
     {
-        Regex = new Regex($@"^\s*({regex})\s*");
+        //regexp = Regex.Replace(regexp, @"\\(.)", "$1");
+        Regexp = new Regex($@"^\s*({regexp})\s*");
     }
 
     public bool TryMatch(StringBuilder input, [NotNullWhen(true)] out Token? token)
     {
         token = null;
 
-        var match = Regex.Match(input.ToString());
+        var match = Regexp.Match(input.ToString());
         if (match?.Success ?? false)
         {
             var text = match.Groups[1].Value;
-            input.Remove(0, text.Length);
+            input.Remove(0, match.Length);
             token = new(this, text);
             return true;
         }

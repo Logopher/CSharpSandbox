@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 
-namespace CSharpSandbox.Parser;
+namespace CSharpSandbox.Parsing;
 
 public sealed class TokenList : IList<Token>
 {

@@ -1,4 +1,4 @@
-﻿namespace CSharpSandbox.Parser;
+﻿namespace CSharpSandbox.Parsing;
 
 public interface IParser
 {

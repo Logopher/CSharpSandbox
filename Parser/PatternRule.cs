@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CSharpSandbox.Parser;
+namespace CSharpSandbox.Parsing;
 
 internal class PatternRule : INamedRule
 {

@@ -4,14 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CSharpSandbox.Parser;
+namespace CSharpSandbox.Parsing;
 
 public static class Parser
 {
     public static TParser Generate<TParser, TResult>(string grammar, string rootName, Func<IMetaParser, TParser> cstor)
         where TParser : Parser<TResult>
     {
-        var metaParser = MetaParser.Get<TParser, TResult>(rootName, cstor);
+        var metaParser = MetaParser.Get<TParser, TResult>(cstor);
 
         return metaParser.Parse(grammar);
     }

@@ -1,4 +1,4 @@
-﻿namespace CSharpSandbox.Parser;
+﻿namespace CSharpSandbox.Parsing;
 
 internal class TokenNode : IParseNode
 {
