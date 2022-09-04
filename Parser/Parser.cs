@@ -21,7 +21,7 @@ public abstract class Parser<TResult> : IParser
 {
     internal readonly Dictionary<string, PatternRule> _patternRules = new();
     internal readonly Dictionary<string, INamedRule> _rules = new();
-    internal readonly Dictionary<string, NameRule> _lazyRules = new();
+    internal readonly Dictionary<string, LazyNamedRule> _lazyRules = new();
 
     private NamedRule? _root;
     private readonly IMetaParser? _metaParser;
@@ -105,11 +105,11 @@ public abstract class Parser<TResult> : IParser
         return rule;
     }
 
-    internal NameRule GetLazyRule(string name)
+    public LazyNamedRule GetLazyRule(string name)
     {
-        if (!_lazyRules.TryGetValue(name, out NameRule? rule))
+        if (!_lazyRules.TryGetValue(name, out LazyNamedRule? rule))
         {
-            rule = new NameRule(this, name);
+            rule = new LazyNamedRule(this, name);
             _lazyRules.Add(name, rule);
         }
         return rule;

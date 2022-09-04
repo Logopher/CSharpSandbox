@@ -12,7 +12,6 @@ public sealed class Pattern
 
     public Pattern(string regexp)
     {
-        //regexp = Regex.Replace(regexp, @"\\(.)", "$1");
         Regexp = new Regex($@"^\s*({regexp})\s*");
     }
 

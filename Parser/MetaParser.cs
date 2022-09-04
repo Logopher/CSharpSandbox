@@ -137,7 +137,7 @@ namespace CSharpSandbox.Parsing
                 return null;
             });
 
-            addTypeRule((NameRule self, TokenList tokens) => Parse(self.Rule, tokens));
+            addTypeRule((LazyNamedRule self, TokenList tokens) => Parse(self.Rule, tokens));
 
             addTypeRule((PatternRule self, TokenList tokens) =>
             {
@@ -460,7 +460,7 @@ namespace CSharpSandbox.Parsing
             {
                 return Translate(named, node);
             }
-            else if (node.Rule is NameRule lazy)
+            else if (node.Rule is LazyNamedRule lazy)
             {
                 return Translate(lazy.Rule, node);
             }
@@ -476,7 +476,7 @@ namespace CSharpSandbox.Parsing
 
         public override string ToString(INamedRule rule, IParseNode node)
         {
-            if (rule is NameRule nameRule)
+            if (rule is LazyNamedRule nameRule)
             {
                 rule = nameRule.Rule;
             }

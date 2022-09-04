@@ -1,6 +1,6 @@
 ﻿namespace CSharpSandbox.Parsing;
 
-internal class NamedRule : INamedRule
+public class NamedRule : INamedRule
 {
     internal readonly IParser _parser;
 
@@ -8,7 +8,7 @@ internal class NamedRule : INamedRule
 
     public RuleSegment Rule { get; }
 
-    public NamedRule(IParser parser, string name, RuleSegment rule)
+    internal NamedRule(IParser parser, string name, RuleSegment rule)
     {
         _parser = parser;
 
@@ -21,7 +21,7 @@ internal class NamedRule : INamedRule
     public string ToString(IParseNode node) => _parser.ToString(this, node);
 }
 
-internal class NameRule : INamedRule
+public class LazyNamedRule : INamedRule
 {
     private readonly IParser _parser;
     private INamedRule? _rule;
@@ -30,7 +30,7 @@ internal class NameRule : INamedRule
 
     public INamedRule Rule => _rule ??= _parser.GetRule(Name);
 
-    public NameRule(IParser parser, string name)
+    public LazyNamedRule(IParser parser, string name)
     {
         _parser = parser;
         Name = name;

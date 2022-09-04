@@ -1,11 +1,13 @@
 ﻿namespace CSharpSandbox.Parsing;
 
-internal class ParseNode : IParseNode
+public class ParseNode : IParseNode
 {
     public IRule Rule { get; }
     public IReadOnlyList<IParseNode> Children { get; }
 
-    public ParseNode(RuleSegment rule, params IParseNode[] nodes)
+    public NodeType NodeType { get; } = NodeType.Rule;
+
+    internal ParseNode(RuleSegment rule, params IParseNode[] nodes)
     {
         var nodeCount = nodes.Length;
 

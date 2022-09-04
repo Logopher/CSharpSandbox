@@ -33,8 +33,17 @@ public enum Operator
     Repeat,
 }
 
+public enum NodeType
+{
+    Segment,
+    Token,
+    Rule,
+}
+
 public interface IRule
 {
+    string ToString();
+
     string ToString(IParseNode parseNode);
 }
 
@@ -45,5 +54,7 @@ public interface INamedRule : IRule
 
 public interface IParseNode
 {
+    NodeType NodeType { get; }
+
     IRule Rule { get; }
 }

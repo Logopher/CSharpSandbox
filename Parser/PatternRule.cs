@@ -7,13 +7,13 @@ using System.Threading.Tasks;
 
 namespace CSharpSandbox.Parsing;
 
-internal class PatternRule : INamedRule
+public class PatternRule : INamedRule
 {
     internal readonly IParser _parser;
     public string Name { get; }
     public Pattern Pattern { get; }
 
-    public PatternRule(IParser parser, string name, Pattern pattern)
+    internal PatternRule(IParser parser, string name, Pattern pattern)
     {
         _parser = parser;
 
