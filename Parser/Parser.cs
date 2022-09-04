@@ -136,4 +136,6 @@ public abstract class Parser<TResult> : IParser
     public abstract TResult Parse(string input);
 
     protected abstract IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens);
+
+    public abstract string ToString(INamedRule rule, IParseNode node);
 }

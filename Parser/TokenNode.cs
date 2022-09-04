@@ -12,4 +12,6 @@ internal class TokenNode : IParseNode
         Rule = rule;
         Token = token;
     }
+
+    public override string ToString() => Token.ToString();
 }

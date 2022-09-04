@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CSharpSandbox.Common;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,4 +20,8 @@ internal class PatternRule : INamedRule
         Name = name;
         Pattern = pattern;
     }
+
+    public override string ToString() => Pattern.ToString() ?? Mundane.EmptyString;
+
+    public string ToString(IParseNode parseNode) => ((TokenNode)parseNode).ToString();
 }

@@ -20,6 +20,25 @@ namespace CSharpSandbox.Parsing
         private readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _typeRules = new();
         private readonly Func<IMetaParser, TParser> _cstor;
 
+        private class E
+        {
+            public const string ParenExpr = "parenExpr";
+            public const string RepeatRange = "repeatRange";
+            public const string Repeat0 = "repeat0";
+            public const string Repeat1 = "repeat1";
+            public const string Option = "option";
+            public const string OperExpr = "operExpr";
+            public const string BaseExpr = "baseExpr";
+            public const string BaseExpr2 = "baseExpr2";
+            public const string BaseExpr3 = "baseExpr3";
+            public const string NotExpr = "notExpr";
+            public const string OrExpr = "orExpr";
+            public const string AndExpr = "andExpr";
+            public const string Token = "token";
+            public const string Rule = "rule";
+            public const string Lexicon = "lexicon";
+        }
+
         // This method is equivalent to Parser.Generate's `string grammar` argument, and also what makes the other work.
         // We can't pass a grammar until we can parse a grammar, which is the job of the MetaParser.
         // The grammar which the MetaParser is designed to parse is a modified EBNF (Extended Backus–Naur Form),
@@ -64,27 +83,27 @@ namespace CSharpSandbox.Parsing
             var lCurly = L("lRange", "{");
             var rCurly = L("rRange", "}");
 
-            var baseExpr = R("baseExpr", Or(name, Z("parenExpr")));
+            var baseExpr = R(E.BaseExpr, Or(name, Z(E.ParenExpr)));
             var range = R("range", Or(And(lCurly, posInt, comma, Option(posInt), rCurly), And(lCurly, comma, posInt, rCurly)));
-            var repeatRange = R("repeatRange", And(baseExpr, range));
-            var repeat0 = R("repeat0", And(baseExpr, asterisk));
-            var repeat1 = R("repeat1", And(baseExpr, plus));
-            var option = R("option", And(baseExpr, query));
-            var notExpr = R("notExpr", And(excl, baseExpr));
-            var andExpr = R("andExpr", RepeatRange(Z("baseExpr2"), minimum: 2));
-            var orExpr = R("orExpr", And(Z("baseExpr2"), Repeat1(And(pipe, Z("baseExpr2")))));
-            var operExpr = R("operExpr", Or(notExpr, orExpr, repeatRange, repeat0, repeat1));
-            var baseExpr2 = R("baseExpr2", Or(operExpr, baseExpr));
-            var baseExpr3 = R("baseExpr3", Or(andExpr, baseExpr2));
-            R("parenExpr", And(lParen, baseExpr3, rParen));
+            var repeatRange = R(E.RepeatRange, And(baseExpr, range));
+            var repeat0 = R(E.Repeat0, And(baseExpr, asterisk));
+            var repeat1 = R(E.Repeat1, And(baseExpr, plus));
+            var option = R(E.Option, And(baseExpr, query));
+            var notExpr = R(E.NotExpr, And(excl, baseExpr));
+            var andExpr = R(E.AndExpr, RepeatRange(Z(E.BaseExpr2), minimum: 2));
+            var orExpr = R(E.OrExpr, And(Z(E.BaseExpr2), Repeat1(And(pipe, Z(E.BaseExpr2)))));
+            var operExpr = R(E.OperExpr, Or(notExpr, orExpr, repeatRange, repeat0, repeat1, option));
+            var baseExpr2 = R(E.BaseExpr2, Or(operExpr, baseExpr));
+            var baseExpr3 = R(E.BaseExpr3, Or(andExpr, baseExpr2));
+            R(E.ParenExpr, And(lParen, baseExpr3, rParen));
 
-            var token = R("token", And(name, assmt, Or(literal, pattern), stmtEnd));
-            var rule = R("rule", And(name, assmt, baseExpr3, stmtEnd));
+            var token = R(E.Token, And(name, assmt, Or(literal, pattern), stmtEnd));
+            var rule = R(E.Rule, And(name, assmt, baseExpr3, stmtEnd));
 
             var tokenSection = R("tokenSection", RepeatRange(token));
             var ruleSection = R("ruleSection", RepeatRange(rule));
 
-            R("lexicon", And(tokenSection, ruleSection));
+            R(E.Lexicon, And(tokenSection, ruleSection));
         }
 
         internal MetaParser(Func<IMetaParser, TParser> cstor)
@@ -94,14 +113,14 @@ namespace CSharpSandbox.Parsing
 
             ApplyBootsrapGrammar();
 
-            DirectSyntax("andExpr", ResolveAnd);
-            DirectSyntax("orExpr", ResolveOr);
-            DirectSyntax("notExpr", ResolveNot);
-            DirectSyntax("option", ResolveOption);
-            DirectSyntax("parenExpr", ResolveParens);
-            DirectSyntax("repeat0", ResolveRepeat0);
-            DirectSyntax("repeat1", ResolveRepeat1);
-            DirectSyntax("repeatRange", ResolveRepeatRange);
+            DirectSyntax(E.AndExpr, ResolveAnd);
+            DirectSyntax(E.OrExpr, ResolveOr);
+            DirectSyntax(E.NotExpr, ResolveNot);
+            DirectSyntax(E.Option, ResolveOption);
+            DirectSyntax(E.ParenExpr, ResolveParens);
+            DirectSyntax(E.Repeat0, ResolveRepeat0);
+            DirectSyntax(E.Repeat1, ResolveRepeat1);
+            DirectSyntax(E.RepeatRange, ResolveRepeatRange);
 
             void addTypeRule<TRule>(Func<TRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), (r, l) => rule((TRule)r, l));
 
@@ -452,6 +471,24 @@ namespace CSharpSandbox.Parsing
             else
             {
                 throw new Exception();
+            }
+        }
+
+        public override string ToString(INamedRule rule, IParseNode node)
+        {
+            if (rule is NameRule nameRule)
+            {
+                rule = nameRule.Rule;
+            }
+
+            switch (rule.Name)
+            {
+                case E.ParenExpr:
+                    var inner = ((NamedRule)rule)
+                        .Rule.ToString((ParseNode)node);
+                    return $"({inner})";
+                default:
+                    throw new Exception();
             }
         }
     }

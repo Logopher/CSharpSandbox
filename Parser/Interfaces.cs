@@ -15,6 +15,8 @@ public interface IParser
     INamedRule DefineRule(string name, RuleSegment segment);
 
     INamedRule GetRule(string name);
+
+    string ToString(INamedRule rule, IParseNode node);
 }
 
 public interface IMetaParser : IParser
@@ -33,6 +35,7 @@ public enum Operator
 
 public interface IRule
 {
+    string ToString(IParseNode parseNode);
 }
 
 public interface INamedRule : IRule

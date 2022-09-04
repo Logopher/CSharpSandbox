@@ -15,6 +15,10 @@ internal class NamedRule : INamedRule
         Name = name;
         Rule = rule;
     }
+
+    public override string ToString() => Rule.ToString();
+
+    public string ToString(IParseNode node) => _parser.ToString(this, node);
 }
 
 internal class NameRule : INamedRule
@@ -31,4 +35,8 @@ internal class NameRule : INamedRule
         _parser = parser;
         Name = name;
     }
+
+    public override string ToString() => Rule.ToString();
+
+    public string ToString(IParseNode node) => Rule.ToString(node);
 }

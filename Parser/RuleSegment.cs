@@ -1,4 +1,6 @@
-﻿namespace CSharpSandbox.Parsing;
+﻿using CSharpSandbox.Common;
+
+namespace CSharpSandbox.Parsing;
 
 public class RuleSegment : IRule
 {
@@ -28,6 +30,55 @@ public class RuleSegment : IRule
     public static RuleSegment Repeat0(IParser parser, IRule rule) => RepeatRange(parser, rule, 0);
 
     public static RuleSegment Repeat1(IParser parser, IRule rule) => RepeatRange(parser, rule, 1);
+
+    public override string ToString()
+    {
+        switch (Operator)
+        {
+            case Operator.And:
+                return string.Join(" ", Rules);
+            case Operator.Or:
+                return string.Join(" | ", Rules);
+            case Operator.Not:
+                return $"!{Rules.Single()}";
+            case Operator.Option:
+                return $"{Rules.Single()}?";
+            case Operator.Repeat:
+                throw new Exception();
+            default:
+                throw new Exception();
+        };
+    }
+
+    public virtual string ToString(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+
+        if (pnode.Children.Count != Rules.Count)
+        {
+            throw new Exception();
+        }
+
+        var rule = Rules.Single();
+        var child = pnode.Children.Single();
+        var baseString = rule.ToString(child);
+
+        switch (Operator)
+        {
+            case Operator.And:
+                return string.Join(" ", Rules.Zip(pnode.Children, (r, n) => r.ToString(n)));
+            case Operator.Or:
+                return string.Join(" | ", Rules.Zip(pnode.Children, (r, n) => r.ToString(n)));
+            case Operator.Not:
+                return $"!{baseString}";
+            case Operator.Option:
+                return $"{baseString}?";
+            case Operator.Repeat:
+                throw new Exception();
+            default:
+                throw new Exception();
+        };
+    }
 }
 
 internal class RepeatRule : RuleSegment
@@ -41,5 +92,58 @@ internal class RepeatRule : RuleSegment
     {
         Minimum = minimum;
         Maximum = maximum;
+    }
+
+    public override string ToString()
+    {
+        var rule = Rules.Single();
+
+        if (Maximum == null)
+        {
+            switch (Minimum)
+            {
+                case null:
+                case 0:
+                    return $"{Rules.Single()}*";
+                case 1:
+                    return $"{Rules.Single()}+";
+            }
+        }
+
+        var min = Minimum != null ? Minimum.ToString() : Mundane.EmptyString;
+        var max = Maximum != null ? Maximum.ToString() : Mundane.EmptyString;
+
+        return $"{rule}{{{min},{max}}}";
+    }
+
+    public override string ToString(IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+
+        if (pnode.Children.Count != Rules.Count)
+        {
+            throw new Exception();
+        }
+
+        var rule = Rules.Single();
+        var child = pnode.Children.Single();
+        var baseString = rule.ToString(child);
+
+        if (Maximum == null)
+        {
+            switch (Minimum)
+            {
+                case null:
+                case 0:
+                    return $"{baseString}*";
+                case 1:
+                    return $"{baseString}+";
+            }
+        }
+
+        var min = Minimum != null ? Minimum.ToString() : Mundane.EmptyString;
+        var max = Maximum != null ? Maximum.ToString() : Mundane.EmptyString;
+
+        return $"{baseString}{{{min},{max}}}";
     }
 }

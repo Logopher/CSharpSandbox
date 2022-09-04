@@ -36,7 +36,7 @@ namespace CSharpSandbox.Tests
             var grammar = @"
 modifier = /Ctrl|Alt|Shift|Windows/;
 plus = ""+"";
-key = /(?:F[1-9][0-9]?|[A-Z0-9!@#$%^& .\\`""'~_()[]{}?=+\/*-])/;
+key = /(?:F[1-9][0-9]?|Space|Tab|Enter|[A-Z0-9!@#$%^&.\\`""'~_()[]{}?=+\/*-])/;
 
 chord = (modifier plus)* key;
 gesture = chord+;

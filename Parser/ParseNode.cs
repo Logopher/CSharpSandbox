@@ -64,4 +64,6 @@ internal class ParseNode : IParseNode
             return child;
         }
     }
+
+    public override string ToString() => Rule.ToString(this);
 }

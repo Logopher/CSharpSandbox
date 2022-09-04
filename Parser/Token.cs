@@ -11,4 +11,6 @@ public sealed class Token
         Pattern = pattern;
         Lexeme = lexeme;
     }
+
+    public override string ToString() => Lexeme;
 }
