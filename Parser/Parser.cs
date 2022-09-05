@@ -12,7 +12,6 @@ public abstract class Parser<TResult> : IParser
     internal readonly Dictionary<string, PatternRule> _patternRules = new();
     internal readonly Dictionary<string, INamedRule> _rules = new();
     internal readonly Dictionary<string, LazyNamedRule> _lazyRules = new();
-    private readonly Dictionary<Type, Func<IRule, TokenList, IParseNode?>> _typeRules = new();
 
     private NamedRule? _root;
     private readonly IMetaParser? _metaParser;
@@ -43,8 +42,6 @@ public abstract class Parser<TResult> : IParser
         _metaParser = metaParser;
         Logger = logger;
         RootName = rootName;
-
-        Init();
     }
 
     public Parser(IMetaParser metaParser, string rootName)
@@ -52,8 +49,6 @@ public abstract class Parser<TResult> : IParser
         _metaParser = metaParser;
         Logger = ((IMetaParser_internal)_metaParser).GetLogger();
         RootName = rootName;
-
-        Init();
     }
 
     internal Parser(string rootName, ILogger logger)
@@ -61,55 +56,6 @@ public abstract class Parser<TResult> : IParser
         _metaParser = this as IMetaParser ?? throw new Exception();
         Logger = logger;
         RootName = rootName;
-
-        Init();
-    }
-
-    private void Init()
-    {
-        void addTypeRule<TRule>(Func<TRule, TokenList, IParseNode?> rule) where TRule : IRule => _typeRules.Add(typeof(TRule), (r, l) => rule((TRule)r, l));
-
-        addTypeRule((NamedRule self, TokenList tokens) =>
-        {
-            var tempTokens = tokens.Fork();
-            Logger.LogTrace("rule {Name} match? {Tokens}", self.Name, tokens);
-            var temp = Parse(self.Rule, tempTokens);
-            var result = temp != null;
-            Logger.LogTrace("rule {Name} match {Result} {Tokens}", self.Name, result ? "PASSED" : "FAILED", tokens);
-            if (result)
-            {
-                tokens.Merge(tempTokens);
-                return new ParseNode(self, temp!);
-            }
-
-            return null;
-        });
-
-        addTypeRule((LazyNamedRule self, TokenList tokens) => Parse(self.Rule, tokens));
-
-        addTypeRule((PatternRule self, TokenList tokens) =>
-        {
-            if(tokens.Count == 0)
-            {
-                return null;
-            }
-
-            var first = tokens[0];
-            Logger.LogTrace("pattern {Name} match? {Token}", self.Name, first);
-            var result = first.Pattern == self.Pattern;
-            Logger.LogTrace("pattern {Name} match {Result} {Token}", self.Name, result ? "PASSED" : "FAILED", first);
-            if (first.Pattern == self.Pattern)
-            {
-                tokens.Cursor++;
-                return new TokenNode(self, first);
-            }
-
-            return null;
-        });
-
-        addTypeRule((RuleSegment self, TokenList tokens) => ParseRuleSegment(self, tokens));
-
-        addTypeRule((RepeatRule self, TokenList tokens) => ParseRuleSegment(self, tokens));
     }
 
     protected IParseNode? Parse<TRule>(TRule rule, string input)
@@ -118,8 +64,57 @@ public abstract class Parser<TResult> : IParser
 
     protected IParseNode? Parse<TRule>(TRule rule, TokenList tokens)
         where TRule : IRule
-        => _typeRules[rule.GetType()](rule, tokens);
+    {
+        switch (rule)
+        {
+            case NamedRule namedRule:
+                {
+                    var tempTokens = tokens.Fork();
+                    Logger.LogTrace("rule {Name} match? {Tokens}", namedRule.Name, tokens);
+                    var temp = Parse(namedRule.Rule, tempTokens);
+                    var result = temp != null;
+                    Logger.LogTrace("rule {Name} match {Result} {Tokens}", namedRule.Name, result ? "PASSED" : "FAILED", tokens);
+                    if (result)
+                    {
+                        tokens.Merge(tempTokens);
+                        return new ParseNode(namedRule, temp!);
+                    }
 
+                    return null;
+                }
+
+            case LazyNamedRule lazy:
+                return Parse(lazy.Rule, tokens);
+
+            case PatternRule patternRule:
+                {
+                    if (tokens.Count == 0)
+                    {
+                        return null;
+                    }
+
+                    var first = tokens[0];
+                    Logger.LogTrace("pattern {Name} match? {Token}", patternRule.Name, first);
+                    var result = first.Pattern == patternRule.Pattern;
+                    Logger.LogTrace("pattern {Name} match {Result} {Token}", patternRule.Name, result ? "PASSED" : "FAILED", first);
+                    if (first.Pattern == patternRule.Pattern)
+                    {
+                        tokens.Cursor++;
+                        return new TokenNode(patternRule, first);
+                    }
+
+                    return null;
+                }
+
+            case RepeatRule repeatRule:
+                return ParseRuleSegment(repeatRule, tokens);
+
+            case RuleSegment ruleSegment:
+                return ParseRuleSegment(ruleSegment, tokens);
+            default:
+                throw new Exception();
+        }
+    }
     protected IParseNode? Parse(string ruleName, string input)
         => Parse(GetRule(ruleName), Tokenize(input));
 
