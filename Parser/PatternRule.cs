@@ -21,7 +21,7 @@ public class PatternRule : INamedRule
         Pattern = pattern;
     }
 
-    public override string ToString() => Pattern.ToString() ?? Mundane.EmptyString;
+    public override string ToString() => Name;
 
     public string ToString(IParseNode parseNode) => ((TokenNode)parseNode).ToString();
 }

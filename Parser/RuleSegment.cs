@@ -59,10 +59,6 @@ public class RuleSegment : IRule
             throw new Exception();
         }
 
-        var rule = Rules.Single();
-        var child = pnode.Children.Single();
-        var baseString = rule.ToString(child);
-
         switch (Operator)
         {
             case Operator.And:
@@ -70,9 +66,9 @@ public class RuleSegment : IRule
             case Operator.Or:
                 return string.Join(" | ", Rules.Zip(pnode.Children, (r, n) => r.ToString(n)));
             case Operator.Not:
-                return $"!{baseString}";
+                return $"!{Rules.Single().ToString(pnode.Children.Single())}";
             case Operator.Option:
-                return $"{baseString}?";
+                return $"{Rules.Single().ToString(pnode.Children.Single())}?";
             case Operator.Repeat:
                 throw new Exception();
             default:

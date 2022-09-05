@@ -1,4 +1,6 @@
-﻿namespace CSharpSandbox.Parsing;
+﻿using Microsoft.Extensions.Logging;
+
+namespace CSharpSandbox.Parsing;
 
 public interface IParser
 {
@@ -22,6 +24,11 @@ public interface IParser
 public interface IMetaParser : IParser
 {
     IRule ParseRule(IParser parser, string ruleName, string rule);
+}
+
+internal interface IMetaParser_internal : IMetaParser
+{
+    ILogger GetLogger();
 }
 
 public enum Operator
@@ -57,4 +64,6 @@ public interface IParseNode
     NodeType NodeType { get; }
 
     IRule Rule { get; }
+
+    string ToString();
 }

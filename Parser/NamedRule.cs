@@ -16,7 +16,7 @@ public class NamedRule : INamedRule
         Rule = rule;
     }
 
-    public override string ToString() => Rule.ToString();
+    public override string ToString() => Name;
 
     public string ToString(IParseNode node) => _parser.ToString(this, node);
 }

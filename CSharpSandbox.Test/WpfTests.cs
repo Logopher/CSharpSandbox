@@ -1,82 +1,131 @@
 ﻿using CSharpSandbox.Parsing;
 using CSharpSandbox.Wpf.Gestures;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using NLog.Extensions.Logging;
 using System.Windows.Input;
 
 namespace CSharpSandbox.Tests
 {
-    class StimulusParser : Parser<InputGestureTree.Stimulus[]>
+    class GestureParser : Parser<InputGestureTree.Stimulus[]>
     {
-        public StimulusParser(IMetaParser metaParser)
+        public GestureParser(IMetaParser metaParser)
             : base(metaParser, "gesture")
         {
-
         }
 
-        public override InputGestureTree.Stimulus[] Parse(string input)
+        public override InputGestureTree.Stimulus[] Parse(ParseNode gesture)
         {
-            throw new NotImplementedException();
+            var stimuli = (gesture.Get(0) as ParseNode ?? throw new Exception())
+                .Children.Select(n =>
+                {
+                    var pnode = (ParseNode)n;
+                    var modifiers = (pnode.Get(0) as ParseNode ?? throw new Exception())
+                        .Children
+                        .Select(GetModifierName)
+                        .Select(m => m switch
+                        {
+                            "Ctrl" => ModifierKeys.Control,
+                            "Alt" => ModifierKeys.Alt,
+                            "Shift" => ModifierKeys.Shift,
+                            "Windows" => ModifierKeys.Windows,
+                            _ => throw new Exception(),
+                        })
+                        .Aggregate((a, b) => a | b);
+
+                    var keyName = (pnode.Get(1) as TokenNode ?? throw new Exception())
+                        .Token.Lexeme;
+
+                    var wordKeys = new[] { Key.Space, Key.Tab, Key.Enter, Key.Pause, Key.Delete, Key.Insert, Key.PrintScreen }
+                        .ToDictionary(k => k.ToString(), k => k);
+
+                    var key = keyName switch
+                    {
+                        var x when wordKeys.TryGetValue(x, out Key temp) => temp,
+                        var x when x.Length == 1 && 'A' <= x[0] && x[0] <= 'Z' => Enum.Parse<Key>(keyName),
+                        var x when 1 < x.Length && x[0] == 'F' && int.TryParse(x[1..], out _) => Enum.Parse<Key>(x),
+                        var x when 1 < x.Length && x[0] == '#' && int.TryParse(x[1..], out _) => Enum.Parse<Key>($"NumPad{x[1..]}"),
+                        var x when int.TryParse(x, out _) => Enum.Parse<Key>($"D{x}"),
+                        ";" => Key.OemSemicolon,
+                        "'" => Key.OemQuotes,
+                        "," => Key.OemComma,
+                        "." => Key.OemPeriod,
+                        "/" => throw new Exception(),
+                        "`" => Key.OemTilde,
+                        "-" => Key.OemMinus,
+                        "=" => throw new Exception(),
+                        "[" => Key.OemOpenBrackets,
+                        "]" => Key.OemCloseBrackets,
+                        _ => throw new Exception(),
+                    };
+
+                    return new InputGestureTree.Stimulus(modifiers, key);
+                })
+                .ToArray();
+
+            return stimuli;
         }
 
         public override string ToString(INamedRule rule, IParseNode node)
         {
-            var pnode = node as ParseNode ?? throw new Exception();
-
-            switch (rule.Name)
+            switch (node)
             {
-                case "gesture":
-                    var chords = (pnode.Get(0) as ParseNode ?? throw new Exception())
-                        .Children;
+                case TokenNode tnode:
+                    return tnode.ToString();
+                case ParseNode pnode:
+                    switch (rule.Name)
+                    {
+                        case "gesture":
+                            var chords = (pnode.Get(0) as ParseNode ?? throw new Exception())
+                                .Children;
 
-                    return string.Join(" ", chords);
-                case "chord":
-                    var modifiers = (pnode.Get(0) as ParseNode ?? throw new Exception())
-                        .Children.Select(n =>
-                        {
-                            var mod = (n as ParseNode ?? throw new Exception())
-                                .Get(0) as TokenNode ?? throw new Exception();
+                            return string.Join(" ", chords);
+                        case "chord":
+                            var modifiers = (pnode.Get(0) as ParseNode ?? throw new Exception())
+                                .Children
+                                .Select(GetModifierName);
 
-                            switch (mod.Token.Lexeme)
-                            {
-                                case "Ctrl":
-                                    return ModifierKeys.Control;
-                                case "Alt":
-                                    return ModifierKeys.Alt;
-                                case "Shift":
-                                    return ModifierKeys.Shift;
-                                case "Windows":
-                                    return ModifierKeys.Windows;
-                                default:
-                                    throw new Exception();
-                            }
-                        });
+                            var key = (pnode.Get(1) as TokenNode ?? throw new Exception())
+                                .Token.Lexeme;
 
-                    var key = (pnode.Get(1) as TokenNode ?? throw new Exception())
-                        .Token.Lexeme;
-
-                    return $"{string.Join("+", modifiers)}+{key}";
+                            return $"{string.Join("+", modifiers)}+{key}";
+                        default:
+                            throw new Exception();
+                    }
                 default:
                     throw new Exception();
             }
         }
 
-        protected override IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens)
+        private string GetModifierName(IParseNode node)
         {
-            throw new NotImplementedException();
+            var pnode = node as ParseNode ?? throw new Exception();
+            var tnode = pnode.Get(0) as TokenNode ?? throw new Exception();
+
+            return tnode.Token.Lexeme;
         }
     }
 
     [TestClass]
     public class WpfTests
     {
+        [TestInitialize]
+        public void Setup()
+        {
+        }
+
         [TestMethod]
         public void ParseInputGestures()
         {
-            var grammar = @"
+            try
+            {
+                using var host = CreateHostBuilder().Build();
+
+                host.Start();
+
+                var grammar = @"
 modifier = /Ctrl|Alt|Shift|Windows/;
 plus = ""+"";
 key = /(?:F[1-9][0-9]?|Space|Tab|Enter|[A-Z0-9!@#$%^&.\\`""'~_()[]{}?=+\/*-])/;
@@ -85,9 +134,39 @@ chord = (modifier plus)* key;
 gesture = chord+;
 ";
 
-            var parser = Parser.Generate<StimulusParser, InputGestureTree.Stimulus[]>(grammar, "gesture", mp => new StimulusParser(mp));
+                var metaParserFactory = host.Services.GetRequiredService<IMetaParserFactory>();
 
-            var stimuli = parser.Parse("Ctrl+A Alt+B C");
+                var metaParser = metaParserFactory.Create<GestureParser, InputGestureTree.Stimulus[]>(mp => new GestureParser(mp));
+
+                var parser = metaParser.Parse(grammar);
+
+                var stimuli = parser.Parse("Ctrl+A Alt+B C");
+            }
+            catch (Exception e)
+            {
+                e.ToString();
+            }
+        }
+
+        private IHostBuilder CreateHostBuilder()
+        {
+
+            var config = new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory()) //From NuGet Package Microsoft.Extensions.Configuration.Json
+                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                    .Build();
+
+            return Host.CreateDefaultBuilder()
+                .ConfigureServices((_, services) =>
+                {
+                    services.AddLogging(loggingBuilder =>
+                    {
+                        loggingBuilder.SetMinimumLevel(LogLevel.Trace);
+                        loggingBuilder.AddNLog(config);
+                    });
+
+                    services.AddSingleton<IMetaParserFactory, MetaParserFactory>();
+                });
         }
     }
 }

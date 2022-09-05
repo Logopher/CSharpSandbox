@@ -31,5 +31,5 @@ public sealed class Pattern
         return false;
     }
 
-    public override string ToString() => Regexp.ToString();
+    public override string ToString() => $"/{Regexp}/";
 }
