@@ -10,12 +10,11 @@ using System.Windows.Input;
 
 namespace CSharpSandbox.Wpf.Gestures
 {
-
     public class InputGestureTree
     {
-        readonly Dictionary<Stimulus, INode> _root = new Dictionary<Stimulus, INode>();
+        readonly Dictionary<Stimulus, INode> _root = new();
 
-        readonly Dictionary<string, Stimulus[]> _reverseMap = new Dictionary<string, Stimulus[]>();
+        readonly Dictionary<string, Stimulus[]> _reverseMap = new();
 
         readonly Func<string, ICommand> _commandResolver;
 
@@ -272,7 +271,7 @@ namespace CSharpSandbox.Wpf.Gestures
 
                     return true;
                 }
-                else if (_node is Leaf l)
+                else if (_node is Leaf)
                 {
                     throw new InvalidOperationException();
                 }
