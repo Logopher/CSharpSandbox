@@ -27,9 +27,8 @@ public class MetaParserFactory : IMetaParserFactory
 public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_internal
     where TParser : Parser<TResult>
 {
-    private readonly Dictionary<INamedRule, Func<IParseNode, RuleSegment>> _directory = new();
+    private readonly Dictionary<INamedRule, Func<IParser, IParseNode, IRule>> _directory = new();
     private readonly Func<IMetaParser, TParser> _cstor;
-    private readonly ILogger _logger;
 
     // This method is equivalent to Parser.Generate's `string grammar` argument, and also what makes the other work.
     // We can't pass a grammar until we can parse a grammar, which is the job of the MetaParser.
@@ -44,10 +43,10 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         INamedRule Z(string name) => GetLazyRule(name);
 
         // literals
-        PatternRule L(string name, string s) => DefinePattern(name, Pattern.FromLiteral(s));
+        PatternRule L(string name, string s) => DefinePattern(name, Pattern.FromLiteral(this, s, Logger));
 
         // patterns
-        PatternRule P(string name, string s) => DefinePattern(name, new Pattern(s));
+        PatternRule P(string name, string s) => DefinePattern(name, new Pattern(this, s, Logger));
 
         // rules
         INamedRule R(string name, RuleSegment rule)
@@ -58,7 +57,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
 
         var literal = P("literal", @"""(?:\\""|[^""])+""");
         var pattern = P("pattern", @"/(?:\\/|[^/])+/");
-        var name = P("name", "[a-zA-Z_][a-zA-Z0-9_]+");
+        var name = P(E.Name, "[a-zA-Z_][a-zA-Z0-9_]+");
         var posInt = P("posInt", "[0-9]+");
 
         var assmt = L("assmt", "=");
@@ -106,6 +105,10 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
 
         ApplyBootsrapGrammar();
 
+        DirectSyntax(E.Token, ResolveTokenDeclaration);
+        DirectSyntax(E.Rule, ResolveRuleDeclaration);
+        DirectSyntax(E.Name, ResolveName);
+
         DirectSyntax(E.AndExpr, ResolveAnd);
         DirectSyntax(E.OrExpr, ResolveOr);
         DirectSyntax(E.NotExpr, ResolveNot);
@@ -114,55 +117,88 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         DirectSyntax(E.Repeat0, ResolveRepeat0);
         DirectSyntax(E.Repeat1, ResolveRepeat1);
         DirectSyntax(E.RepeatRange, ResolveRepeatRange);
+
+        DirectSyntax(E.OperExpr, ResolveBaseExprN);
+        DirectSyntax(E.BaseExpr, ResolveBaseExprN);
+        DirectSyntax(E.BaseExpr2, ResolveBaseExprN);
+        DirectSyntax(E.BaseExpr3, ResolveBaseExprN);
+        DirectSyntax(E.BaseExpr4, ResolveBaseExprN);
     }
 
-    RuleSegment ResolveAnd(IParseNode node)
+    RuleSegment ResolveTokenDeclaration(IParser parser, IParseNode node)
+    {
+        throw new NotImplementedException();
+    }
+
+    RuleSegment ResolveRuleDeclaration(IParser parser, IParseNode node)
+    {
+        throw new NotImplementedException();
+    }
+
+    LazyNamedRule ResolveName(IParser parser, IParseNode node)
+    {
+        var tnode = (TokenNode)node;
+        return parser.GetLazyRule(tnode.Token.Lexeme);
+    }
+
+    IRule ResolveBaseExprN(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.And(this, pnode.Children.Select(ResolveRuleSegment).ToArray());
+        var child = pnode.Get(0, 0) ?? throw new Exception();
+        return Translate(parser, (INamedRule)child.Rule, child);
     }
 
-    RuleSegment ResolveOr(IParseNode node)
+    RuleSegment ResolveAnd(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.Or(this, pnode.Children.Select(ResolveRuleSegment).ToArray());
+        var repeat = pnode.Get(0) as ParseNode ?? throw new Exception();
+        return RuleSegment.And(this, repeat.Children.Select(n => ResolveRuleReference(parser, n)).ToArray());
     }
 
-    RuleSegment ResolveNot(IParseNode node)
+    RuleSegment ResolveOr(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.Not(this, ResolveRuleSegment(pnode.Children.Single()));
+        return RuleSegment.Or(this, pnode.Children.Select(n => ResolveRuleReference(parser, n)).ToArray());
     }
 
-    RuleSegment ResolveOption(IParseNode node)
+    RuleSegment ResolveNot(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.Option(this, ResolveRuleSegment(pnode.Children.Single()));
+        return RuleSegment.Not(this, ResolveRuleReference(parser, pnode.Children.Single()));
     }
 
-    RuleSegment ResolveParens(IParseNode node)
+    RuleSegment ResolveOption(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return ResolveRuleSegment(pnode.Children.Single());
+        return RuleSegment.Option(this, ResolveRuleReference(parser, pnode.Children.Single()));
     }
 
-    RuleSegment ResolveRepeat0(IParseNode node)
+    IRule ResolveParens(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.Repeat0(this, ResolveRuleSegment(pnode.Children[0]));
+        var inner = pnode.Get(0, 1) ?? throw new Exception();
+        return ResolveRuleReference(parser, inner);
     }
 
-    RuleSegment ResolveRepeat1(IParseNode node)
+    RuleSegment ResolveRepeat0(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.Repeat1(this, ResolveRuleSegment(pnode.Children[0]));
+        var inner = pnode.Get(0, 0) ?? throw new Exception();
+        return RuleSegment.Repeat0(this, ResolveRuleReference(parser, inner));
     }
 
-    RuleSegment ResolveRepeatRange(IParseNode node)
+    RuleSegment ResolveRepeat1(IParser parser, IParseNode node)
+    {
+        var pnode = (ParseNode)node;
+        var inner = pnode.Get(0, 0) ?? throw new Exception();
+        return RuleSegment.Repeat1(this, ResolveRuleReference(parser, inner));
+    }
+
+    RuleSegment ResolveRepeatRange(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
         var inner = pnode.Get(0, 0) as ParseNode ?? throw new Exception();
-        var innerRule = ResolveRuleSegment(inner);
+        var innerRule = ResolveRuleReference(parser, inner);
 
         var range = pnode.Get(0, 1, 0) as ParseNode ?? throw new Exception();
         var (_, commaIndex) = range.Children
@@ -244,7 +280,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
                 .Token.Lexeme;
 
             var value = stmt.Get(2) as ParseNode ?? throw new Exception();
-            var segment = ResolveRuleSegment(value);
+            var segment = (RuleSegment)ResolveRuleReference(parser, value);
 
             parser.DefineRule(name, segment);
         }
@@ -260,7 +296,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
             .Token.Lexeme;
         var value = stmt.Get(2) as ParseNode ?? throw new Exception();
-        var rule = ResolveRuleSegment(value);
+        var rule = (RuleSegment)ResolveRuleReference(parser, value);
 
         parser.DefineRule(name, rule);
     }
@@ -271,35 +307,36 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
 
         var parseTree = Parse(namedRule, input) as ParseNode ?? throw new Exception();
 
-        var ruleSegment = ResolveRuleSegment(parseTree);
+        var ruleSegment = (RuleSegment)ResolveRuleReference(parser, parseTree);
 
         var result = parser.DefineRule(ruleName, ruleSegment);
 
         return result;
     }
 
-    public void DirectSyntax(string name, Func<IParseNode, RuleSegment> mapping)
+    public void DirectSyntax(string name, Func<IParser, IParseNode, IRule> mapping)
     {
         var rule = GetRule(name);
 
         _directory.Add(rule, mapping);
     }
 
-    public RuleSegment Translate(INamedRule rule, IParseNode node) => _directory[rule](node);
+    public IRule Translate(IParser parser, INamedRule rule, IParseNode node) => _directory[rule](parser, node);
 
-    public RuleSegment ResolveRuleSegment(IParseNode node)
+    public IRule ResolveRuleReference(IParser parser, IParseNode node)
     {
         if (node.Rule is NamedRule named)
         {
-            return Translate(named, node);
+            return Translate(parser, named, node);
         }
         else if (node.Rule is LazyNamedRule lazy)
         {
-            return Translate(lazy.Rule, node);
+            return Translate(parser, lazy.Rule, node);
         }
         else if (node.Rule is PatternRule pattern)
         {
-            return Translate(pattern, node);
+            throw new Exception();
+            //return Translate(parser, pattern, node);
         }
         else
         {
@@ -325,11 +362,12 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         }
     }
 
-    ILogger IMetaParser_internal.GetLogger() => _logger;
+    ILogger IMetaParser_internal.GetLogger() => Logger;
 }
 
 internal class E
 {
+    public const string Name = "name";
     public const string ParenExpr = "parenExpr";
     public const string RepeatRange = "repeatRange";
     public const string Repeat0 = "repeat0";

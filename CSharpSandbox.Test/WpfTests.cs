@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NLog.Extensions.Logging;
+using System.Linq;
 using System.Windows.Input;
 
 namespace CSharpSandbox.Tests
@@ -22,20 +23,22 @@ namespace CSharpSandbox.Tests
                 .Children.Select(n =>
                 {
                     var pnode = (ParseNode)n;
-                    var modifiers = (pnode.Get(0) as ParseNode ?? throw new Exception())
-                        .Children
-                        .Select(GetModifierName)
-                        .Select(m => m switch
-                        {
-                            "Ctrl" => ModifierKeys.Control,
-                            "Alt" => ModifierKeys.Alt,
-                            "Shift" => ModifierKeys.Shift,
-                            "Windows" => ModifierKeys.Windows,
-                            _ => throw new Exception(),
-                        })
+                    var modifierNode = pnode.Get(0, 0) as ParseNode ?? throw new Exception();
+                    var modifiers = new ModifierKeys[] { 0 }
+                        .Concat(modifierNode
+                            .Children
+                            .Select(GetModifierName)
+                            .Select(m => m switch
+                            {
+                                "Ctrl" => ModifierKeys.Control,
+                                "Alt" => ModifierKeys.Alt,
+                                "Shift" => ModifierKeys.Shift,
+                                "Windows" => ModifierKeys.Windows,
+                                _ => throw new Exception(),
+                            }))
                         .Aggregate((a, b) => a | b);
 
-                    var keyName = (pnode.Get(1) as TokenNode ?? throw new Exception())
+                    var keyName = (pnode.Get(0, 1) as TokenNode ?? throw new Exception())
                         .Token.Lexeme;
 
                     var wordKeys = new[] { Key.Space, Key.Tab, Key.Enter, Key.Pause, Key.Delete, Key.Insert, Key.PrintScreen }
@@ -101,8 +104,17 @@ namespace CSharpSandbox.Tests
 
         private string GetModifierName(IParseNode node)
         {
-            var pnode = node as ParseNode ?? throw new Exception();
-            var tnode = pnode.Get(0) as TokenNode ?? throw new Exception();
+            var tnode = node as TokenNode;
+
+            if (tnode == null && node is ParseNode pnode)
+            {
+                tnode = pnode.Get(0) as TokenNode ?? throw new Exception();
+            }
+
+            if (tnode == null)
+            {
+                throw new Exception();
+            }
 
             return tnode.Token.Lexeme;
         }
@@ -128,7 +140,7 @@ namespace CSharpSandbox.Tests
                 var grammar = @"
 modifier = /Ctrl|Alt|Shift|Windows/;
 plus = ""+"";
-key = /(?:F[1-9][0-9]?|Space|Tab|Enter|[A-Z0-9!@#$%^&.\\`""'~_()[]{}?=+\/*-])/;
+key = /(?:F[1-9][0-9]?|Space|Tab|Enter|[][A-Z0-9!@#$%^&.\\`""'~_(){}?=+\/*-])/;
 
 chord = (modifier plus)* key;
 gesture = chord+;

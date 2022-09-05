@@ -18,6 +18,8 @@ public interface IParser
 
     INamedRule GetRule(string name);
 
+    LazyNamedRule GetLazyRule(string name);
+
     string ToString(INamedRule rule, IParseNode node);
 }
 
