@@ -67,13 +67,16 @@ public abstract class Parser<TResult> : IParser
     {
         switch (rule)
         {
+            case LazyNamedRule lazy:
+                return Parse(lazy.Rule, tokens);
+
             case NamedRule namedRule:
                 {
                     var tempTokens = tokens.Fork();
-                    Logger.LogTrace("rule {Name} match? {Tokens}", namedRule.Name, tokens);
+                    Logger.LogTrace("rule {Name} match? {Tokens}", namedRule.Name, tokens.ToString());
                     var temp = Parse(namedRule.Rule, tempTokens);
                     var result = temp != null;
-                    Logger.LogTrace("rule {Name} match {Result} {Tokens}", namedRule.Name, result ? "PASSED" : "FAILED", tokens);
+                    Logger.LogTrace("rule {Name} match {Result} {Tokens}", namedRule.Name, result ? "PASSED" : "FAILED", tokens.ToString());
                     if (result)
                     {
                         tokens.Merge(tempTokens);
@@ -82,9 +85,6 @@ public abstract class Parser<TResult> : IParser
 
                     return null;
                 }
-
-            case LazyNamedRule lazy:
-                return Parse(lazy.Rule, tokens);
 
             case PatternRule patternRule:
                 {
@@ -111,6 +111,7 @@ public abstract class Parser<TResult> : IParser
 
             case RuleSegment ruleSegment:
                 return ParseRuleSegment(ruleSegment, tokens);
+
             default:
                 throw new Exception();
         }
@@ -203,7 +204,7 @@ public abstract class Parser<TResult> : IParser
 
     private IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens)
     {
-        Logger.LogTrace("rule {Rule} match? {Tokens}", rule, tokens);
+        Logger.LogTrace("rule {Rule} match? {Tokens}", rule, tokens.ToString());
         switch (rule.Operator)
         {
             case Operator.And:
@@ -224,7 +225,7 @@ public abstract class Parser<TResult> : IParser
                             break;
                         }
                     }
-                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens);
+                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
                         tokens.Merge(tempTokens);
@@ -250,7 +251,7 @@ public abstract class Parser<TResult> : IParser
                             tempTokens = tokens.Fork();
                         }
                     }
-                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens);
+                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
                         tokens.Merge(tempTokens);
@@ -264,7 +265,7 @@ public abstract class Parser<TResult> : IParser
                     var r = rule.Rules.Single();
                     var temp = Parse(r, tempTokens);
                     var match = temp == null;
-                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens);
+                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
                         return new ParseNode(rule);
@@ -277,7 +278,7 @@ public abstract class Parser<TResult> : IParser
                     var r = rule.Rules.Single();
                     var temp = Parse(r, tempTokens);
                     var match = temp != null;
-                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens);
+                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
                         tokens.Merge(tempTokens);
@@ -306,7 +307,7 @@ public abstract class Parser<TResult> : IParser
                         }
                         else if (i < min)
                         {
-                            Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, "failed", tokens);
+                            Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, "FAILED", tokens.ToString());
                             return null;
                         }
                         else
@@ -315,7 +316,7 @@ public abstract class Parser<TResult> : IParser
                         }
                     }
 
-                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, "passed", tokens);
+                    Logger.LogTrace("rule {Rule} match {Result} {Tokens}", rule, "PASSED", tokens.ToString());
                     tokens.Merge(tempTokens);
                     return new ParseNode(rule, nodes.ToArray());
                 }

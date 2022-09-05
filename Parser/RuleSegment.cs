@@ -62,7 +62,7 @@ public class RuleSegment : IRule
         switch (Operator)
         {
             case Operator.And:
-                return string.Join(" ", Rules.Zip(pnode.Children, (r, n) => r.ToString(n)));
+                return $"({string.Join(" ", Rules.Zip(pnode.Children, (r, n) => r.ToString(n)))})";
             case Operator.Or:
                 return string.Join(" | ", Rules.Zip(pnode.Children, (r, n) => r.ToString(n)));
             case Operator.Not:
