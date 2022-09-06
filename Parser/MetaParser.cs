@@ -78,7 +78,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         var rCurly = L("rRange", "}");
 
         var baseExpr = R(E.BaseExpr, Or(name, Z(E.ParenExpr)));
-        var range = R("range", Or(And(lCurly, Option(S), posInt, Option(S), comma, Option(S), Option(And(posInt, Option(S))), rCurly), And(lCurly, Option(S), comma, Option(S), posInt, Option(S), rCurly)));
+        var range = R("range", Or(And(lCurly, Option(S), posInt, Option(S), comma, Option(S), Option(posInt), Option(S), rCurly), And(lCurly, Option(S), Empty(), Empty(), comma, Option(S), posInt, Option(S), rCurly)));
         var repeatRange = R(E.RepeatRange, And(baseExpr, range));
         var repeat0 = R(E.Repeat0, And(baseExpr, asterisk));
         var repeat1 = R(E.Repeat1, And(baseExpr, plus));
@@ -147,90 +147,91 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
     IRule ResolveBaseExprN(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        var child = pnode.Get(0, 0) ?? throw new Exception();
+        var child = pnode.Get(0, 0);
         return Translate(parser, (INamedRule)child.Rule, child);
     }
 
     RuleSegment ResolveAnd(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        var first = pnode.Get(0, 0) ?? throw new Exception();
+        var first = pnode.Get(0, 0);
         var restNode = pnode.Get(0, 1) as ParseNode ?? throw new Exception();
-        var rest = restNode.Children.Select(n => ((ParseNode)n).Get(1) ?? throw new Exception());
+        var rest = restNode.Select(n => ((ParseNode)n).Get(1) ?? throw new Exception());
         var nodes = new[] { first }.Concat(rest);
         return RuleSegment.And(this, nodes.Select(n => ResolveRuleReference(parser, n)).ToArray());
     }
 
     RuleSegment ResolveOr(IParser parser, IParseNode node)
+        => ((ParseNode)node).Expand((IParseNode? first, ParseNode? restNode, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode[] _) =>
     {
-        var pnode = (ParseNode)node;
-        var first = pnode.Get(0) ?? throw new Exception();
-        var restNode = pnode.Get(1) as ParseNode ?? throw new Exception();
-        var rest = restNode.Children.Select(n => ((ParseNode)n).Get(3) ?? throw new Exception());
-        var nodes = new[] { first }.Concat(rest);
+        var rest = restNode!
+            .Select(n => ((ParseNode)n)
+                .Get(3) ?? throw new Exception());
+        var nodes = new[] { first! }.Concat(rest);
         return RuleSegment.Or(this, nodes.Select(n => ResolveRuleReference(parser, n)).ToArray());
-    }
+    });
 
     RuleSegment ResolveNot(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.Not(this, ResolveRuleReference(parser, pnode.Children.Single()));
+        return RuleSegment.Not(this, ResolveRuleReference(parser, pnode.Single()));
     }
 
     RuleSegment ResolveOption(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.Option(this, ResolveRuleReference(parser, pnode.Children.Single()));
+        return RuleSegment.Option(this, ResolveRuleReference(parser, pnode.Single()));
     }
 
     IRule ResolveParens(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        var inner = pnode.Get(0, 2) ?? throw new Exception();
+        var inner = pnode.Get(0, 2);
         return ResolveRuleReference(parser, inner);
     }
 
     RuleSegment ResolveRepeat0(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        var inner = pnode.Get(0, 0) ?? throw new Exception();
+        var inner = pnode.Get(0, 0);
         return RuleSegment.Repeat0(this, ResolveRuleReference(parser, inner));
     }
 
     RuleSegment ResolveRepeat1(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        var inner = pnode.Get(0, 0) ?? throw new Exception();
+        var inner = pnode.Get(0, 0);
         return RuleSegment.Repeat1(this, ResolveRuleReference(parser, inner));
     }
 
     RuleSegment ResolveRepeatRange(IParser parser, IParseNode node)
-    {
-        var pnode = (ParseNode)node;
-        var inner = pnode.Get(0, 0) as ParseNode ?? throw new Exception();
-        var innerRule = ResolveRuleReference(parser, inner);
-
-        var range = pnode.Get(0, 1, 0) as ParseNode ?? throw new Exception();
-        var (_, commaIndex) = range.Children
-            .Select((n, i) => (n, i))
-            .First(tup => tup.n is TokenNode t && t.Token.Lexeme == ",");
-
-        var minNode = (TokenNode)range.Children[commaIndex - 2];
-        int? min = null;
-        if (minNode.Token.Lexeme != "{")
+        => ((ParseNode)node).Expand((ParseNode? inner, ParseNode? range, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode[] _) =>
         {
-            min = int.Parse(minNode.Token.Lexeme);
-        }
+            var innerRule = ResolveRuleReference(parser, inner!);
 
-        var maxNode = ((ParseNode)range.Children[commaIndex + 2])
-            .Get(0, 0) as TokenNode ?? throw new Exception();
-        int? max = null;
-        if (maxNode.Token.Lexeme != "}")
-        {
-            max = int.Parse(maxNode.Token.Lexeme);
-        }
-        return RuleSegment.RepeatRange(this, innerRule, min, max);
-    }
+            return range!.Expand((IParseNode? _, IParseNode? _, IParseNode? minNode, IParseNode? _, TokenNode? commaNode, IParseNode? _, IParseNode? maxNode, IParseNode[] _) =>
+            {
+                if (commaNode!.Token.Lexeme != ",")
+                {
+                    throw new Exception();
+                }
+
+                int? min = minNode switch
+                {
+                    TokenNode minNodeT => int.Parse(minNodeT.Token.Lexeme),
+                    _ => null,
+                };
+
+                int? max = maxNode switch
+                {
+                    TokenNode maxNodeT => int.Parse(maxNodeT.Token.Lexeme),
+                    ParseNode maxNodeP => int.TryParse((maxNodeP.SingleOrDefault() as TokenNode)?.Token?.Lexeme, out int v) ? v : null,
+                    _ => null,
+                };
+
+                return RuleSegment.RepeatRange(this, innerRule, min, max);
+            });
+        });
 
     internal RuleSegment And(params IRule[] rules) => RuleSegment.And(this, rules);
 
@@ -239,6 +240,8 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
     internal RuleSegment Not(IRule rule) => RuleSegment.Not(this, rule);
 
     internal RuleSegment Option(IRule rule) => RuleSegment.Option(this, rule);
+
+    internal RuleSegment Empty() => RuleSegment.Empty(this);
 
     internal RuleSegment RepeatRange(IRule rule, int? minimum = null, int? maximum = null) => RuleSegment.RepeatRange(this, rule, minimum, maximum);
 
@@ -253,7 +256,6 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         var tokenSection = parseTree.Get(0, 1, 0) as ParseNode ?? throw new Exception();
         var tokens = new[] { tokenSection.Get(0) }
             .Concat((tokenSection.Get(1) as ParseNode ?? throw new Exception())
-                .Children
                 .Select(n => ((ParseNode)n).Get(1)))
             .ToArray();
 
@@ -290,7 +292,6 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         var ruleSection = parseTree.Get(0, 3, 0) as ParseNode ?? throw new Exception();
         var rules = new[] { ruleSection.Get(0) }
             .Concat((ruleSection.Get(1) as ParseNode ?? throw new Exception())
-                .Children
                 .Select(n => ((ParseNode)n).Get(1)))
             .ToArray();
 

@@ -25,6 +25,8 @@ public class RuleSegment : IRule
 
     public static RuleSegment Option(IParser parser, IRule rule) => new(parser, Operator.Option, rule);
 
+    public static RuleSegment Empty(IParser parser) => new(parser, Operator.Empty);
+
     public static RuleSegment RepeatRange(IParser parser, IRule rule, int? minimum = null, int? maximum = null) => new RepeatRule(parser, rule, minimum, maximum);
 
     public static RuleSegment Repeat0(IParser parser, IRule rule) => RepeatRange(parser, rule, 0);
@@ -54,7 +56,7 @@ public class RuleSegment : IRule
     {
         var pnode = (ParseNode)node;
 
-        if (pnode.Children.Count != Rules.Count)
+        if (pnode.Count != Rules.Count)
         {
             throw new Exception();
         }
@@ -62,13 +64,14 @@ public class RuleSegment : IRule
         switch (Operator)
         {
             case Operator.And:
-                return $"({string.Join(Mundane.EmptyString, Rules.Zip(pnode.Children, (r, n) => r.ToString(n)))})";
+                return $"({string.Join(Mundane.EmptyString, pnode)})";
             case Operator.Or:
-                return string.Join(" | ", Rules.Zip(pnode.Children, (r, n) => r.ToString(n)));
+                return pnode.Single().ToString();
             case Operator.Not:
-                return $"!{Rules.Single().ToString(pnode.Children.Single())}";
+                return Mundane.EmptyString;
             case Operator.Option:
-                return $"{Rules.Single().ToString(pnode.Children.Single())}?";
+                var single = pnode.SingleOrDefault();
+                return single == null ? Mundane.EmptyString : single.ToString();
             case Operator.Repeat:
                 throw new Exception();
             default:
@@ -116,13 +119,13 @@ internal class RepeatRule : RuleSegment
     {
         var pnode = (ParseNode)node;
 
-        if (pnode.Children.Count != Rules.Count)
+        if (pnode.Count != Rules.Count)
         {
             throw new Exception();
         }
 
         var rule = Rules.Single();
-        var child = pnode.Children.Single();
+        var child = pnode.Single();
         var baseString = rule.ToString(child);
 
         if (Maximum == null)

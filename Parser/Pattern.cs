@@ -26,9 +26,9 @@ public sealed class Pattern
         token = null;
 
         var match = Regexp.Match(input.ToString());
-        _logger.LogTrace("pattern {Regex} match? {Input}", Regexp, input);
+        _logger.LogTrace("PATTERN {Regex} MATCH? {Input}", Regexp, input);
         var result = match?.Success ?? false;
-        _logger.LogTrace("pattern {Regex} match {Result} {Input}", Regexp, result ? "PASSED" : "FAILED", input);
+        _logger.LogTrace("PATTERN {Regex} MATCH {Result} {Input}", Regexp, result ? "PASSED" : "FAILED", input);
         if (result)
         {
             var text = match!.Groups[1].Value;

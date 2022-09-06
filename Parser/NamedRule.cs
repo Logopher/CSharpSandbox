@@ -38,5 +38,5 @@ public class LazyNamedRule : INamedRule
 
     public override string ToString() => Rule.ToString();
 
-    public string ToString(IParseNode node) => Rule.ToString(node);
+    public string ToString(IParseNode node) => ((ParseNode)node).Single().ToString();
 }

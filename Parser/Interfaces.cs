@@ -39,6 +39,7 @@ public enum Operator
     Or,
     Not,
     Option,
+    Empty,
     Repeat,
 }
 
