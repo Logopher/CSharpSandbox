@@ -55,9 +55,12 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
             return GetRule(name);
         }
 
+        // space
+        var S = P(E.S, @"\s+");
+
         var literal = P("literal", @"""(?:\\""|[^""])+""");
         var pattern = P("pattern", @"/(?:\\/|[^/])+/");
-        var name = P(E.Name, "[a-zA-Z_][a-zA-Z0-9_]+");
+        var name = P(E.Name, "[a-zA-Z_][a-zA-Z0-9_]*");
         var posInt = P("posInt", "[0-9]+");
 
         var assmt = L("assmt", "=");
@@ -75,27 +78,27 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         var rCurly = L("rRange", "}");
 
         var baseExpr = R(E.BaseExpr, Or(name, Z(E.ParenExpr)));
-        var range = R("range", Or(And(lCurly, posInt, comma, Option(posInt), rCurly), And(lCurly, comma, posInt, rCurly)));
+        var range = R("range", Or(And(lCurly, Option(S), posInt, Option(S), comma, Option(S), Option(And(posInt, Option(S))), rCurly), And(lCurly, Option(S), comma, Option(S), posInt, Option(S), rCurly)));
         var repeatRange = R(E.RepeatRange, And(baseExpr, range));
         var repeat0 = R(E.Repeat0, And(baseExpr, asterisk));
         var repeat1 = R(E.Repeat1, And(baseExpr, plus));
         var option = R(E.Option, And(baseExpr, query));
         var notExpr = R(E.NotExpr, And(excl, baseExpr));
-        var andExpr = R(E.AndExpr, RepeatRange(Z(E.BaseExpr3), minimum: 2));
-        var orExpr = R(E.OrExpr, And(Z(E.BaseExpr2), Repeat1(And(pipe, Z(E.BaseExpr2)))));
+        var andExpr = R(E.AndExpr, And(Z(E.BaseExpr3), Repeat1(And(Option(S), Z(E.BaseExpr3)))));
+        var orExpr = R(E.OrExpr, And(Z(E.BaseExpr2), Repeat1(And(Option(S), pipe, Option(S), Z(E.BaseExpr2)))));
         var operExpr = R(E.OperExpr, Or(notExpr, repeatRange, repeat0, repeat1, option));
         var baseExpr2 = R(E.BaseExpr2, Or(operExpr, baseExpr));
         var baseExpr3 = R(E.BaseExpr3, Or(orExpr, baseExpr2));
         var baseExpr4 = R(E.BaseExpr4, Or(andExpr, baseExpr3));
-        R(E.ParenExpr, And(lParen, baseExpr4, rParen));
+        R(E.ParenExpr, And(lParen, Option(S), baseExpr4, Option(S), rParen));
 
-        var token = R(E.Token, And(name, assmt, Or(literal, pattern), stmtEnd));
-        var rule = R(E.Rule, And(name, assmt, baseExpr4, stmtEnd));
+        var token = R(E.Token, And(name, Option(S), assmt, Option(S), Or(literal, pattern), Option(S), stmtEnd));
+        var rule = R(E.Rule, And(name, Option(S), assmt, Option(S), baseExpr4, Option(S), stmtEnd));
 
-        var tokenSection = R("tokenSection", Repeat1(token));
-        var ruleSection = R("ruleSection", Repeat1(rule));
+        var tokenSection = R("tokenSection", And(token, Repeat0(And(S, token))));
+        var ruleSection = R("ruleSection", And(rule, Repeat0(And(S, rule))));
 
-        R(E.Lexicon, And(tokenSection, ruleSection));
+        R(E.Lexicon, And(Option(S), tokenSection, S, ruleSection, Option(S)));
     }
 
     internal MetaParser(Func<IMetaParser, TParser> cstor, ILogger logger)
@@ -151,14 +154,21 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
     RuleSegment ResolveAnd(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        var repeat = pnode.Get(0) as ParseNode ?? throw new Exception();
-        return RuleSegment.And(this, repeat.Children.Select(n => ResolveRuleReference(parser, n)).ToArray());
+        var first = pnode.Get(0, 0) ?? throw new Exception();
+        var restNode = pnode.Get(0, 1) as ParseNode ?? throw new Exception();
+        var rest = restNode.Children.Select(n => ((ParseNode)n).Get(1) ?? throw new Exception());
+        var nodes = new[] { first }.Concat(rest);
+        return RuleSegment.And(this, nodes.Select(n => ResolveRuleReference(parser, n)).ToArray());
     }
 
     RuleSegment ResolveOr(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        return RuleSegment.Or(this, pnode.Children.Select(n => ResolveRuleReference(parser, n)).ToArray());
+        var first = pnode.Get(0) ?? throw new Exception();
+        var restNode = pnode.Get(1) as ParseNode ?? throw new Exception();
+        var rest = restNode.Children.Select(n => ((ParseNode)n).Get(3) ?? throw new Exception());
+        var nodes = new[] { first }.Concat(rest);
+        return RuleSegment.Or(this, nodes.Select(n => ResolveRuleReference(parser, n)).ToArray());
     }
 
     RuleSegment ResolveNot(IParser parser, IParseNode node)
@@ -176,7 +186,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
     IRule ResolveParens(IParser parser, IParseNode node)
     {
         var pnode = (ParseNode)node;
-        var inner = pnode.Get(0, 1) ?? throw new Exception();
+        var inner = pnode.Get(0, 2) ?? throw new Exception();
         return ResolveRuleReference(parser, inner);
     }
 
@@ -205,14 +215,15 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
             .Select((n, i) => (n, i))
             .First(tup => tup.n is TokenNode t && t.Token.Lexeme == ",");
 
-        var minNode = (TokenNode)range.Children[commaIndex - 1];
+        var minNode = (TokenNode)range.Children[commaIndex - 2];
         int? min = null;
         if (minNode.Token.Lexeme != "{")
         {
             min = int.Parse(minNode.Token.Lexeme);
         }
 
-        var maxNode = (TokenNode)range.Children[commaIndex + 1];
+        var maxNode = ((ParseNode)range.Children[commaIndex + 2])
+            .Get(0, 0) as TokenNode ?? throw new Exception();
         int? max = null;
         if (maxNode.Token.Lexeme != "}")
         {
@@ -239,9 +250,14 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
     {
         var parser = _cstor(this);
 
-        var tokens = parseTree.Get(0, 0, 0) as ParseNode ?? throw new Exception();
+        var tokenSection = parseTree.Get(0, 1, 0) as ParseNode ?? throw new Exception();
+        var tokens = new[] { tokenSection.Get(0) }
+            .Concat((tokenSection.Get(1) as ParseNode ?? throw new Exception())
+                .Children
+                .Select(n => ((ParseNode)n).Get(1)))
+            .ToArray();
 
-        foreach (var token in tokens.Children)
+        foreach (var token in tokens)
         {
             var pnode = token as ParseNode ?? throw new Exception();
 
@@ -250,7 +266,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
             var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
                 .Token.Lexeme;
 
-            var value = stmt.Get(2, 0) as TokenNode ?? throw new Exception();
+            var value = stmt.Get(4, 0) as TokenNode ?? throw new Exception();
 
             var valueLex = value.Token.Lexeme;
 
@@ -268,9 +284,17 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
             }
         }
 
-        var rules = parseTree.Get(0, 1, 0) as ParseNode ?? throw new Exception();
+        // WAKE UP!
+        _lazyRules.All(r => r.Value.Rule != null);
 
-        foreach (var rule in rules.Children)
+        var ruleSection = parseTree.Get(0, 3, 0) as ParseNode ?? throw new Exception();
+        var rules = new[] { ruleSection.Get(0) }
+            .Concat((ruleSection.Get(1) as ParseNode ?? throw new Exception())
+                .Children
+                .Select(n => ((ParseNode)n).Get(1)))
+            .ToArray();
+
+        foreach (var rule in rules)
         {
             var pnode = rule as ParseNode ?? throw new Exception();
 
@@ -279,7 +303,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
             var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
                 .Token.Lexeme;
 
-            var value = stmt.Get(2) as ParseNode ?? throw new Exception();
+            var value = stmt.Get(4) as ParseNode ?? throw new Exception();
             var segment = (RuleSegment)ResolveRuleReference(parser, value);
 
             parser.DefineRule(name, segment);
@@ -367,6 +391,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
 
 internal class E
 {
+    public const string S = "S";
     public const string Name = "name";
     public const string ParenExpr = "parenExpr";
     public const string RepeatRange = "repeatRange";

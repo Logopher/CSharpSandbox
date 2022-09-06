@@ -60,7 +60,10 @@ public abstract class Parser<TResult> : IParser
 
     protected IParseNode? Parse<TRule>(TRule rule, string input)
         where TRule : IRule
-        => Parse(rule, Tokenize(input));
+    { 
+        var result = Parse(rule, Tokenize(input));
+        return result;
+    }
 
     protected IParseNode? Parse<TRule>(TRule rule, TokenList tokens)
         where TRule : IRule
@@ -180,6 +183,7 @@ public abstract class Parser<TResult> : IParser
     {
         StringBuilder builder = new(input);
         TokenList result = new();
+        var length = builder.Length;
         while (0 < builder.Length)
         {
             foreach (var (_, rule) in _patternRules)
@@ -190,6 +194,13 @@ public abstract class Parser<TResult> : IParser
                     continue;
                 }
             }
+
+            if(builder.Length == length)
+            {
+                throw new Exception();
+            }
+
+            length = builder.Length;
         }
         return result;
     }

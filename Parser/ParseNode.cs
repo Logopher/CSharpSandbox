@@ -42,10 +42,8 @@ public class ParseNode : IParseNode
         Children = new[] { node };
     }
 
-    public IParseNode? Get(params int[] path)
+    public IParseNode? Get(int first, params int[] rest)
     {
-        var first = path[0];
-        var rest = path[1..];
         if (Children.Count <= first)
         {
             throw new Exception();
@@ -59,7 +57,7 @@ public class ParseNode : IParseNode
                 throw new Exception();
             }
 
-            return pnode.Get(rest);
+            return pnode.Get(rest[0], rest[1..]);
         }
         else
         {

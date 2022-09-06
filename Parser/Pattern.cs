@@ -18,7 +18,7 @@ public sealed class Pattern
     {
         _parser = parser;
         _logger = logger;
-        Regexp = new Regex($@"^\s*({regexp})\s*");
+        Regexp = new Regex($@"^({regexp})");
     }
 
     public bool TryMatch(StringBuilder input, [NotNullWhen(true)] out Token? token)
