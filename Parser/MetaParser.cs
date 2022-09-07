@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using CSharpSandbox.Common;
+using Microsoft.Extensions.Logging;
 
 namespace CSharpSandbox.Parsing;
 
@@ -225,8 +226,8 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
                 int? max = maxNode switch
                 {
                     TokenNode maxNodeT => int.Parse(maxNodeT.Token.Lexeme),
-                    ParseNode maxNodeP => int.TryParse((maxNodeP.SingleOrDefault() as TokenNode)?.Token?.Lexeme, out int v) ? v : null,
-                    _ => null,
+                    ParseNode maxNodeP => int.TryParse(maxNodeP.SingleOrDefault() as TokenNode ?? (string?)null, out int v) ? v : null,
+                    _ => throw new Exception(),
                 };
 
                 return RuleSegment.RepeatRange(this, innerRule, min, max);
@@ -253,77 +254,66 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
     {
         var parser = _cstor(this);
 
-        var tokenSection = parseTree.Get(0, 1, 0) as ParseNode ?? throw new Exception();
-        var tokens = new[] { tokenSection.Get(0) }
-            .Concat((tokenSection.Get(1) as ParseNode ?? throw new Exception())
-                .Select(n => ((ParseNode)n).Get(1)))
-            .ToArray();
+        var tokens = parseTree.ToList<ParseNode>(0, 1, 0);
 
         foreach (var token in tokens)
         {
-            var pnode = token as ParseNode ?? throw new Exception();
-
-            var stmt = pnode.Get(0) as ParseNode ?? throw new Exception();
-
-            var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
-                .Token.Lexeme;
-
-            var value = stmt.Get(4, 0) as TokenNode ?? throw new Exception();
-
-            var valueLex = value.Token.Lexeme;
-
-            valueLex = valueLex[1..^1];
-            switch (value.Rule.Name)
+            token.Expand(new[] { 0 }, (TokenNode? name, IParseNode? _, TokenNode? assmt, IParseNode? _, ParseNode? valueNode, IParseNode? _, IParseNode? _, IParseNode[] _) =>
             {
-                case "literal":
-                    parser.DefineLiteral(name, valueLex);
-                    break;
-                case "pattern":
-                    parser.DefinePattern(name, valueLex);
-                    break;
-                default:
+                if (assmt!.ToString() != "=")
+                {
                     throw new Exception();
-            }
+                }
+
+                var value = ((TokenNode)valueNode!.Get(0));
+
+                switch (value.Rule.Name)
+                {
+                    case "literal":
+                        parser.DefineLiteral(name!, value[1..^1]);
+                        break;
+                    case "pattern":
+                        parser.DefinePattern(name!, value[1..^1]);
+                        break;
+                    default:
+                        throw new Exception();
+                }
+            });
         }
 
         // WAKE UP!
-        _lazyRules.All(r => r.Value.Rule != null);
+        foreach (var lazyRule in _lazyRules.Values)
+        {
+            // Accessing `Rule` will cause it to be resolved.
+            // If it is not available in `_rules`, it will trigger an exception.
+            if (lazyRule.Rule == null)
+            {
+                throw new Exception();
+            }
 
-        var ruleSection = parseTree.Get(0, 3, 0) as ParseNode ?? throw new Exception();
-        var rules = new[] { ruleSection.Get(0) }
-            .Concat((ruleSection.Get(1) as ParseNode ?? throw new Exception())
-                .Select(n => ((ParseNode)n).Get(1)))
-            .ToArray();
+            _lazyRules.Remove(lazyRule.Name);
+        }
+
+        var rules = parseTree.ToList<ParseNode>(0, 3, 0);
 
         foreach (var rule in rules)
         {
-            var pnode = rule as ParseNode ?? throw new Exception();
+            rule.Expand(new[] { 0 }, (TokenNode? name, IParseNode? _, TokenNode? assmt, IParseNode? _, ParseNode? valueNode, IParseNode? _, IParseNode? _, IParseNode[] _) =>
+            {
+                if (assmt!.ToString() != "=")
+                {
+                    throw new Exception();
+                }
 
-            var stmt = pnode.Get(0) as ParseNode ?? throw new Exception();
+                var value = valueNode!.Get(0);
 
-            var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
-                .Token.Lexeme;
+                var segment = (RuleSegment)ResolveRuleReference(parser, value);
 
-            var value = stmt.Get(4) as ParseNode ?? throw new Exception();
-            var segment = (RuleSegment)ResolveRuleReference(parser, value);
-
-            parser.DefineRule(name, segment);
+                parser.DefineRule(name!, segment);
+            });
         }
 
         return parser;
-    }
-
-    public void ParseRule(IParser parser, IParseNode? node)
-    {
-        var pnode = node as ParseNode ?? throw new Exception();
-
-        var stmt = pnode.Get(0) as ParseNode ?? throw new Exception();
-        var name = (stmt.Get(0) as TokenNode ?? throw new Exception())
-            .Token.Lexeme;
-        var value = stmt.Get(2) as ParseNode ?? throw new Exception();
-        var rule = (RuleSegment)ResolveRuleReference(parser, value);
-
-        parser.DefineRule(name, rule);
     }
 
     public IRule ParseRule(IParser parser, string ruleName, string input)
@@ -332,12 +322,16 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
 
         var parseTree = Parse(namedRule, input) as ParseNode ?? throw new Exception();
 
-        var ruleSegment = (RuleSegment)ResolveRuleReference(parser, parseTree);
-
-        var result = parser.DefineRule(ruleName, ruleSegment);
-
-        return result;
+        return ParseRule(this, parseTree);
     }
+
+    public INamedRule ParseRule(IParser parser, ParseNode node)
+        => node.Expand(new[] { 0 }, (TokenNode? name, IParseNode? _, TokenNode? assmt, IParseNode? _, ParseNode? value, IParseNode? _, IParseNode? _, IParseNode[] _) =>
+        {
+            var rule = (RuleSegment)ResolveRuleReference(parser, value!);
+
+            return parser.DefineRule(name!, rule);
+        });
 
     public void DirectSyntax(string name, Func<IParser, IParseNode, IRule> mapping)
     {
@@ -358,7 +352,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         {
             return Translate(parser, lazy.Rule, node);
         }
-        else if (node.Rule is PatternRule pattern)
+        else if (node.Rule is PatternRule _)
         {
             throw new Exception();
             //return Translate(parser, pattern, node);

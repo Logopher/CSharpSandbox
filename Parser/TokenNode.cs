@@ -9,6 +9,8 @@ public class TokenNode : IParseNode
 
     public NodeType NodeType { get; } = NodeType.Token;
 
+    public string this[Range range] => ToString()[range];
+
     internal TokenNode(PatternRule rule, Token token)
     {
         Rule = rule;
@@ -16,4 +18,6 @@ public class TokenNode : IParseNode
     }
 
     public override string ToString() => Token.ToString();
+
+    public static implicit operator string(TokenNode node) => node.ToString();
 }

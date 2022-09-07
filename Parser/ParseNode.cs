@@ -87,6 +87,48 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
             root.Children.Skip(7).ToArray());
     }
 
+    public void Expand<T0, T1, T2, T3, T4, T5, T6>(Action<T0?, T1?, T2?, T3?, T4?, T5?, T6?, IParseNode[]> action)
+        where T0 : IParseNode
+        where T1 : IParseNode
+        where T2 : IParseNode
+        where T3 : IParseNode
+        where T4 : IParseNode
+        => Expand(Array.Empty<int>(), action);
+    public void Expand<T0, T1, T2, T3, T4, T5, T6>(int[] path, Action<T0?, T1?, T2?, T3?, T4?, T5?, T6?, IParseNode[]> action)
+        where T0 : IParseNode
+        where T1 : IParseNode
+        where T2 : IParseNode
+        where T3 : IParseNode
+        where T4 : IParseNode
+    {
+        var root = 0 < path.Length
+            ? Get(path[0], path[1..]) as ParseNode ?? throw new Exception()
+            : this;
+
+        action(
+            (T0?)(0 < root.Children.Count ? root.Get(0) : null),
+            (T1?)(1 < root.Children.Count ? root.Get(1) : null),
+            (T2?)(2 < root.Children.Count ? root.Get(2) : null),
+            (T3?)(3 < root.Children.Count ? root.Get(3) : null),
+            (T4?)(4 < root.Children.Count ? root.Get(4) : null),
+            (T5?)(5 < root.Children.Count ? root.Get(5) : null),
+            (T6?)(6 < root.Children.Count ? root.Get(6) : null),
+            root.Children.Skip(7).ToArray());
+    }
+
+    internal IList<T> ToList<T>(params int[] path)
+        where T : class, IParseNode
+    {
+        var root = 0 < path.Length
+            ? (ParseNode)Get(path[0], path[1..])
+            : this;
+
+        return new[] { (T)root.Get(0) }
+            .Concat((root.Get(1) as ParseNode ?? throw new Exception())
+                .Select(n => (T)((ParseNode)n).Get(1)))
+            .ToArray();
+    }
+
     public IParseNode Get(int first, params int[] rest)
     {
         if (Children.Count <= first)
