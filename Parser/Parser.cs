@@ -60,7 +60,7 @@ public abstract class Parser<TResult> : IParser
 
     protected IParseNode? Parse<TRule>(TRule rule, string input)
         where TRule : IRule
-    { 
+    {
         var result = Parse(rule, Tokenize(input));
         return result;
     }
@@ -132,7 +132,7 @@ public abstract class Parser<TResult> : IParser
 
     internal PatternRule DefineLiteral(string name, string pattern) => DefinePattern(name, Pattern.FromLiteral(this, pattern, Logger));
 
-    internal PatternRule DefinePattern(string name, string pattern)
+    public PatternRule DefinePattern(string name, string pattern)
     {
         var rule = new PatternRule(this, name, new Pattern(this, pattern, Logger));
         _patternRules.Add(name, rule);
@@ -142,8 +142,7 @@ public abstract class Parser<TResult> : IParser
 
     internal NamedRule DefineRule(string name, string rule)
     {
-        var segment = MetaParser.ParseRule(this, E.BaseExpr3, rule) as RuleSegment ?? throw new Exception();
-        var namedRule = new NamedRule(this, name, segment);
+        var namedRule = MetaParser.ParseRule(this, E.BaseExpr3, rule);
         _rules.Add(name, namedRule);
         return namedRule;
     }
@@ -155,10 +154,9 @@ public abstract class Parser<TResult> : IParser
         return rule;
     }
 
-    INamedRule IParser.DefineLiteral(string name, string pattern) => DefineLiteral(name, pattern);
-    INamedRule IParser.DefinePattern(string name, string pattern) => DefinePattern(name, pattern);
-    INamedRule IParser.DefineRule(string name, string rule) => DefinePattern(name, rule);
-    INamedRule IParser.DefineRule(string name, RuleSegment segment) => DefineRule(name, segment);
+    PatternRule IParser.DefineLiteral(string name, string pattern) => DefineLiteral(name, pattern);
+    NamedRule IParser.DefineRule(string name, string rule) => MetaParser.ParseRule(this, name, rule);
+    NamedRule IParser.DefineRule(string name, RuleSegment segment) => DefineRule(name, segment);
 
     public INamedRule GetRule(string name)
     {
@@ -195,7 +193,7 @@ public abstract class Parser<TResult> : IParser
                 }
             }
 
-            if(builder.Length == length)
+            if (builder.Length == length)
             {
                 throw new Exception();
             }

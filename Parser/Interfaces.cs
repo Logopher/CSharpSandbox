@@ -8,13 +8,13 @@ public interface IParser
 
     string RootName { get; }
 
-    INamedRule DefineLiteral(string name, string literal);
+    PatternRule DefineLiteral(string name, string literal);
 
-    INamedRule DefinePattern(string name, string pattern);
+    PatternRule DefinePattern(string name, string pattern);
 
-    INamedRule DefineRule(string name, string value);
+    NamedRule DefineRule(string name, string value);
 
-    INamedRule DefineRule(string name, RuleSegment segment);
+    NamedRule DefineRule(string name, RuleSegment segment);
 
     INamedRule GetRule(string name);
 
@@ -25,7 +25,7 @@ public interface IParser
 
 public interface IMetaParser : IParser
 {
-    IRule ParseRule(IParser parser, string ruleName, string rule);
+    NamedRule ParseRule(IParser parser, string ruleName, string rule);
 }
 
 internal interface IMetaParser_internal : IMetaParser

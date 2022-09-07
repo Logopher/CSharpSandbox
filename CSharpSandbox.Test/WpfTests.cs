@@ -19,14 +19,12 @@ namespace CSharpSandbox.Tests
 
         public override InputGestureTree.Stimulus[] Parse(ParseNode gesture)
         {
-            var stimuli = (gesture.Get(0) as ParseNode ?? throw new Exception())
-                .Children.Select(n =>
+            var nodes = ((ParseNode)gesture[0]).ToList<ParseNode>();
+            var stimuli = nodes.Select(pnode =>
+                pnode.Expand(new[] { 0 }, (ParseNode? modifierNode, TokenNode? keyName, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode[] _) =>
                 {
-                    var pnode = (ParseNode)n;
-                    var modifierNode = pnode.Get(0, 0) as ParseNode ?? throw new Exception();
                     var modifiers = new ModifierKeys[] { 0 }
-                        .Concat(modifierNode
-                            .Children
+                        .Concat(modifierNode!
                             .Select(GetModifierName)
                             .Select(m => m switch
                             {
@@ -38,16 +36,13 @@ namespace CSharpSandbox.Tests
                             }))
                         .Aggregate((a, b) => a | b);
 
-                    var keyName = (pnode.Get(0, 1) as TokenNode ?? throw new Exception())
-                        .Token.Lexeme;
-
                     var wordKeys = new[] { Key.Space, Key.Tab, Key.Enter, Key.Pause, Key.Delete, Key.Insert, Key.PrintScreen }
                         .ToDictionary(k => k.ToString(), k => k);
 
-                    var key = keyName switch
+                    var key = (string)keyName! switch
                     {
                         var x when wordKeys.TryGetValue(x, out Key temp) => temp,
-                        var x when x.Length == 1 && 'A' <= x[0] && x[0] <= 'Z' => Enum.Parse<Key>(keyName),
+                        var x when x.Length == 1 && 'A' <= x[0] && x[0] <= 'Z' => Enum.Parse<Key>(x),
                         var x when 1 < x.Length && x[0] == 'F' && int.TryParse(x[1..], out _) => Enum.Parse<Key>(x),
                         var x when 1 < x.Length && x[0] == '#' && int.TryParse(x[1..], out _) => Enum.Parse<Key>($"NumPad{x[1..]}"),
                         var x when int.TryParse(x, out _) => Enum.Parse<Key>($"D{x}"),
@@ -65,7 +60,7 @@ namespace CSharpSandbox.Tests
                     };
 
                     return new InputGestureTree.Stimulus(modifiers, key);
-                })
+                }))
                 .ToArray();
 
             return stimuli;
@@ -81,17 +76,12 @@ namespace CSharpSandbox.Tests
                     switch (rule.Name)
                     {
                         case "gesture":
-                            var chords = (pnode.Get(0) as ParseNode ?? throw new Exception())
-                                .Children;
-
-                            return string.Join(" ", chords);
+                            return string.Join(" ", (ParseNode)pnode[0]);
                         case "chord":
-                            var modifiers = (pnode.Get(0) as ParseNode ?? throw new Exception())
-                                .Children
+                            var modifiers = ((ParseNode)pnode[0])
                                 .Select(GetModifierName);
 
-                            var key = (pnode.Get(1) as TokenNode ?? throw new Exception())
-                                .Token.Lexeme;
+                            var key = (TokenNode)pnode[1];
 
                             return $"{string.Join("+", modifiers)}+{key}";
                         default:
@@ -108,7 +98,7 @@ namespace CSharpSandbox.Tests
 
             if (tnode == null && node is ParseNode pnode)
             {
-                tnode = pnode.Get(0) as TokenNode ?? throw new Exception();
+                tnode = (TokenNode)pnode[0];
             }
 
             if (tnode == null)
@@ -116,7 +106,7 @@ namespace CSharpSandbox.Tests
                 throw new Exception();
             }
 
-            return tnode.Token.Lexeme;
+            return tnode;
         }
     }
 
@@ -138,12 +128,13 @@ namespace CSharpSandbox.Tests
                 host.Start();
 
                 var grammar = @"
+S = /\s+/;
 modifier = /Ctrl|Alt|Shift|Windows/;
 plus = ""+"";
 key = /(?:F[1-9][0-9]?|Space|Tab|Enter|[][A-Z0-9!@#$%^&.\\`""'~_(){}?=+\/*-])/;
 
 chord = (modifier plus)* key;
-gesture = chord+;
+gesture = chord (S chord)*;
 ";
 
                 var metaParserFactory = host.Services.GetRequiredService<IMetaParserFactory>();
@@ -156,7 +147,7 @@ gesture = chord+;
             }
             catch (Exception e)
             {
-                e.ToString();
+                Assert.Fail(e.Message);
             }
         }
 

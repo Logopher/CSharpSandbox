@@ -45,6 +45,8 @@ public class RuleSegment : IRule
                 return $"!{Rules.Single()}";
             case Operator.Option:
                 return $"{Rules.Single()}?";
+            case Operator.Empty:
+                return Mundane.EmptyString;
             case Operator.Repeat:
                 throw new Exception();
             default:
