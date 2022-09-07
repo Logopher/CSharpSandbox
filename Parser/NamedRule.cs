@@ -24,19 +24,20 @@ public class NamedRule : INamedRule
 public class LazyNamedRule : INamedRule
 {
     private readonly IParser _parser;
-    private INamedRule? _rule;
+    private readonly Lazy<INamedRule> _lazy;
 
     public string Name { get; }
 
-    public INamedRule Rule => _rule ??= _parser.GetRule(Name);
+    public INamedRule Rule => _lazy.Value;
 
     public LazyNamedRule(IParser parser, string name)
     {
         _parser = parser;
         Name = name;
+        _lazy = new Lazy<INamedRule>(() => parser.GetRule(name));
     }
 
     public override string ToString() => Rule.ToString();
 
-    public string ToString(IParseNode node) => ((ParseNode)node).Single().ToString();
+    public string ToString(IParseNode node) => Rule.ToString(node);
 }

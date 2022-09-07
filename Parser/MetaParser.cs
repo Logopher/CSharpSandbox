@@ -41,7 +41,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
     internal void ApplyBootsrapGrammar()
     {
         // lazy, as in ZZZZZ
-        INamedRule Z(string name) => GetLazyRule(name);
+        LazyNamedRule Z(string name) => GetLazyRule(name);
 
         // literals
         PatternRule L(string name, string s) => DefinePattern(name, Pattern.FromLiteral(this, s, Logger));
@@ -50,11 +50,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         PatternRule P(string name, string s) => DefinePattern(name, new Pattern(this, s, Logger));
 
         // rules
-        INamedRule R(string name, RuleSegment rule)
-        {
-            DefineRule(name, rule);
-            return GetRule(name);
-        }
+        NamedRule R(string name, RuleSegment rule) => DefineRule(name, rule);
 
         // space
         var S = P(E.S, @"\s+");
@@ -330,9 +326,9 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
 
     public override string ToString(INamedRule rule, IParseNode node)
     {
-        if (rule is LazyNamedRule nameRule)
+        if (rule is LazyNamedRule lazy)
         {
-            rule = nameRule.Rule;
+            rule = lazy.Rule;
         }
 
         switch (rule.Name)

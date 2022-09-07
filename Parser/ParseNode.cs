@@ -173,7 +173,7 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
     /// (<typeparamref name="T0"/>...<typeparamref name="T6"/>). Subsequent nodes will be provided in the <see cref="IParseNode[]"/>
     /// at the end of the parameter list.
     /// 
-    /// (Additional overloads are planned to allow numbers of nodes other than 7. Because this is a one-size-fits-all method, the callback's
+    /// (Additional overloads are planned to allow numbers of nodes lower than 7. Because this is a one-size-fits-all method, the callback's
     /// parameters are all nullable, but the null-forgiving operator (<code>node!</code>) is safe as long as you know that position has a node.
     /// If a node of an incompatible type is in that position, an exception will be thrown before the callback is invoked.)
     /// </summary>
