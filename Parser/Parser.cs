@@ -9,7 +9,7 @@ namespace CSharpSandbox.Parsing;
 
 public abstract class Parser<TResult> : IParser
 {
-    internal readonly Dictionary<string, PatternRule> _patternRules = new();
+    internal readonly Dictionary<string, Pattern> _patternRules = new();
     internal readonly Dictionary<string, INamedRule> _rules = new();
     internal readonly Dictionary<string, LazyNamedRule> _lazyRules = new();
 
@@ -60,14 +60,18 @@ public abstract class Parser<TResult> : IParser
 
     protected IParseNode? Parse<TRule>(TRule rule, string input)
         where TRule : IRule
-    {
-        var result = Parse(rule, Tokenize(input));
-        return result;
-    }
+        => Parse(rule, Tokenize(input));
 
     protected IParseNode? Parse<TRule>(TRule rule, TokenList tokens)
         where TRule : IRule
     {
+        if (0 < tokens.Count && tokens[0].HasMatchingRule(rule, out Tuple<IParseNode, int>? tuple))
+        {
+            Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
+            tokens.Cursor = tuple.Item2;
+            return tuple.Item1;
+        }
+
         switch (rule)
         {
             case LazyNamedRule lazy:
@@ -82,14 +86,16 @@ public abstract class Parser<TResult> : IParser
                     Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", namedRule.Name, result ? "PASSED" : "FAILED", tokens.ToString());
                     if (result)
                     {
+                        var pnode = new ParseNode(namedRule, temp!);
+                        tokens[0].AddMatchingRule(namedRule, pnode, tempTokens.Cursor);
                         tokens.Merge(tempTokens);
-                        return new ParseNode(namedRule, temp!);
+                        return pnode;
                     }
 
                     return null;
                 }
 
-            case PatternRule patternRule:
+            case Pattern pattern:
                 {
                     if (tokens.Count == 0)
                     {
@@ -97,13 +103,14 @@ public abstract class Parser<TResult> : IParser
                     }
 
                     var first = tokens[0];
-                    Logger.LogTrace("PATTERN {Name} MATCH? {Token}", patternRule.Name, first);
-                    var result = first.Pattern == patternRule.Pattern;
-                    Logger.LogTrace("PATTERN {Name} MATCH {Result} {Token}", patternRule.Name, result ? "PASSED" : "FAILED", first);
-                    if (first.Pattern == patternRule.Pattern)
+
+                    Logger.LogTrace("PATTERN {Name} MATCH? {Token}", pattern.Name, first);
+                    var result = first.Rule == pattern;
+                    Logger.LogTrace("PATTERN {Name} MATCH {Result} {Token}", pattern.Name, result ? "PASSED" : "FAILED", first);
+                    if (result)
                     {
-                        tokens.Cursor++;
-                        return new TokenNode(patternRule, first);
+                        first.AddMatchingRule(rule, first, ++tokens.Cursor);
+                        return first;
                     }
 
                     return null;
@@ -122,19 +129,18 @@ public abstract class Parser<TResult> : IParser
     protected IParseNode? Parse(string ruleName, string input)
         => Parse(GetRule(ruleName), Tokenize(input));
 
-    internal PatternRule DefinePattern(string name, Pattern pattern)
+    internal Pattern DefinePattern(Pattern pattern)
     {
-        var rule = new PatternRule(this, name, pattern);
-        _patternRules.Add(name, rule);
-        _rules.Add(name, rule);
-        return rule;
+        _patternRules.Add(pattern.Name, pattern);
+        _rules.Add(pattern.Name, pattern);
+        return pattern;
     }
 
-    internal PatternRule DefineLiteral(string name, string pattern) => DefinePattern(name, Pattern.FromLiteral(this, pattern, Logger));
+    internal Pattern DefineLiteral(string name, string pattern) => DefinePattern(Pattern.FromLiteral(this, name, pattern, Logger));
 
-    public PatternRule DefinePattern(string name, string pattern)
+    public Pattern DefinePattern(string name, string pattern)
     {
-        var rule = new PatternRule(this, name, new Pattern(this, pattern, Logger));
+        var rule = new Pattern(this, name, pattern, Logger);
         _patternRules.Add(name, rule);
         _rules.Add(name, rule);
         return rule;
@@ -154,7 +160,7 @@ public abstract class Parser<TResult> : IParser
         return rule;
     }
 
-    PatternRule IParser.DefineLiteral(string name, string pattern) => DefineLiteral(name, pattern);
+    Pattern IParser.DefineLiteral(string name, string pattern) => DefineLiteral(name, pattern);
     NamedRule IParser.DefineRule(string name, string rule) => MetaParser.ParseRule(this, name, rule);
     NamedRule IParser.DefineRule(string name, RuleSegment segment) => DefineRule(name, segment);
 
@@ -186,7 +192,7 @@ public abstract class Parser<TResult> : IParser
         {
             foreach (var (_, rule) in _patternRules)
             {
-                if (rule.Pattern.TryMatch(builder, out Token? token))
+                if (rule.TryMatch(builder, out Token? token))
                 {
                     result.Add(token);
                     continue;
@@ -237,8 +243,10 @@ public abstract class Parser<TResult> : IParser
                     Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
+                        var pnode = new ParseNode(rule, nodes.ToArray());
+                        tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
                         tokens.Merge(tempTokens);
-                        return new ParseNode(rule, nodes.ToArray());
+                        return pnode;
                     }
                 }
                 break;
@@ -263,8 +271,10 @@ public abstract class Parser<TResult> : IParser
                     Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
+                        var pnode = new ParseNode(rule, temp!);
+                        tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
                         tokens.Merge(tempTokens);
-                        return new ParseNode(rule, temp!);
+                        return pnode;
                     }
                 }
                 break;
@@ -277,7 +287,12 @@ public abstract class Parser<TResult> : IParser
                     Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
-                        return new ParseNode(rule);
+                        var pnode = new ParseNode(rule);
+                        if (0 < tokens.Count)
+                        {
+                            tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
+                        }
+                        return pnode;
                     }
                 }
                 break;
@@ -290,12 +305,19 @@ public abstract class Parser<TResult> : IParser
                     Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
+                        var pnode = new ParseNode(rule, temp!);
+                        tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
                         tokens.Merge(tempTokens);
-                        return new ParseNode(rule, temp!);
+                        return pnode;
                     }
                     else
                     {
-                        return new ParseNode(rule);
+                        var pnode = new ParseNode(rule);
+                        if (0 < tokens.Count)
+                        {
+                            tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
+                        }
+                        return pnode;
                     }
                 }
             case Operator.Repeat:
@@ -326,8 +348,13 @@ public abstract class Parser<TResult> : IParser
                     }
 
                     Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, "PASSED", tokens.ToString());
+                    var pnode = new ParseNode(rule, nodes.ToArray());
+                    if (0 < tokens.Count)
+                    {
+                        tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
+                    }
                     tokens.Merge(tempTokens);
-                    return new ParseNode(rule, nodes.ToArray());
+                    return pnode;
                 }
         }
 

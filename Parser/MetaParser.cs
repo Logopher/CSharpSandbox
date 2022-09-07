@@ -44,10 +44,10 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         LazyNamedRule Z(string name) => GetLazyRule(name);
 
         // literals
-        PatternRule L(string name, string s) => DefinePattern(name, Pattern.FromLiteral(this, s, Logger));
+        Pattern L(string name, string s) => DefinePattern(Pattern.FromLiteral(this, name, s, Logger));
 
         // patterns
-        PatternRule P(string name, string s) => DefinePattern(name, new Pattern(this, s, Logger));
+        Pattern P(string name, string s) => DefinePattern(new Pattern(this, name, s, Logger));
 
         // rules
         NamedRule R(string name, RuleSegment rule) => DefineRule(name, rule);
@@ -125,15 +125,15 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         DirectSyntax(E.BaseExpr4, ResolveBaseExprN);
     }
 
-    PatternRule ResolvePatternDeclaration(IParser parser, IParseNode node)
-        => ((ParseNode)node).Expand(new[] { 0 }, (TokenNode? name, IParseNode? _, TokenNode? assmt, IParseNode? _, ParseNode? valueNode, IParseNode? _, IParseNode? _, IParseNode[] _) =>
+    Pattern ResolvePatternDeclaration(IParser parser, IParseNode node)
+        => ((ParseNode)node).Expand(new[] { 0 }, (Token? name, IParseNode? _, Token? assmt, IParseNode? _, ParseNode? valueNode, IParseNode? _, IParseNode? _, IParseNode[] _) =>
     {
         if (assmt!.ToString() != "=")
         {
             throw new Exception();
         }
 
-        var value = (TokenNode)valueNode![0];
+        var value = (Token)valueNode![0];
 
         return value.Rule.Name switch
         {
@@ -144,7 +144,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
     });
 
     NamedRule ResolveRuleDeclaration(IParser parser, IParseNode node)
-        => ((ParseNode)node).Expand(new[] { 0 }, (TokenNode? name, IParseNode? _, TokenNode? assmt, IParseNode? _, ParseNode? value, IParseNode? _, IParseNode? _, IParseNode[] _) =>
+        => ((ParseNode)node).Expand(new[] { 0 }, (Token? name, IParseNode? _, Token? assmt, IParseNode? _, ParseNode? value, IParseNode? _, IParseNode? _, IParseNode[] _) =>
     {
         if (assmt!.ToString() != "=")
         {
@@ -156,7 +156,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         return parser.DefineRule(name!, rule);
     });
 
-    LazyNamedRule ResolveName(IParser parser, IParseNode node) => parser.GetLazyRule((TokenNode)node);
+    LazyNamedRule ResolveName(IParser parser, IParseNode node) => parser.GetLazyRule((Token)node);
 
     IRule ResolveBaseExprN(IParser parser, IParseNode node)
     {
@@ -211,7 +211,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         {
             var innerRule = ResolveRule(parser, inner!);
 
-            return range!.Expand((IParseNode? _, IParseNode? _, IParseNode? minNode, IParseNode? _, TokenNode? commaNode, IParseNode? _, IParseNode? maxNode, IParseNode[] _) =>
+            return range!.Expand((IParseNode? _, IParseNode? _, IParseNode? minNode, IParseNode? _, Token? commaNode, IParseNode? _, IParseNode? maxNode, IParseNode[] _) =>
             {
                 if (commaNode! != ",")
                 {
@@ -220,14 +220,14 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
 
                 int? min = minNode switch
                 {
-                    TokenNode minNodeT => int.Parse(minNodeT),
+                    Token minNodeT => int.Parse(minNodeT),
                     _ => null,
                 };
 
                 int? max = maxNode switch
                 {
-                    TokenNode maxNodeT => int.Parse(maxNodeT),
-                    ParseNode maxNodeP => int.TryParse(maxNodeP.SingleOrDefault() as TokenNode ?? (string?)null, out int v) ? v : null,
+                    Token maxNodeT => int.Parse(maxNodeT),
+                    ParseNode maxNodeP => int.TryParse(maxNodeP.SingleOrDefault() as Token ?? (string?)null, out int v) ? v : null,
                     _ => throw new Exception(),
                 };
 
@@ -313,7 +313,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         {
             return Translate(parser, lazy.Rule, node);
         }
-        else if (node.Rule is PatternRule _)
+        else if (node.Rule is Pattern _)
         {
             throw new Exception();
             //return Translate(parser, pattern, node);

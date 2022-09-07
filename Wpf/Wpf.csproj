@@ -12,7 +12,7 @@
     <Authors>$(SolutionName).$(AssemblyName)</Authors>
     <PackageId>$(SolutionName).$(AssemblyName)</PackageId>
     <RootNamespace>$(SolutionName).$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
-    <Version>1.0.0.341</Version>
+    <Version>1.0.0.362</Version>
   </PropertyGroup>
 
   <ItemGroup>

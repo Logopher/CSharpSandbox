@@ -21,7 +21,7 @@ namespace CSharpSandbox.Tests
         {
             var nodes = ((ParseNode)gesture[0]).ToList<ParseNode>();
             var stimuli = nodes.Select(pnode =>
-                pnode.Expand(new[] { 0 }, (ParseNode? modifierNode, TokenNode? keyName, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode[] _) =>
+                pnode.Expand(new[] { 0 }, (ParseNode? modifierNode, Token? keyName, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode? _, IParseNode[] _) =>
                 {
                     var modifiers = new ModifierKeys[] { 0 }
                         .Concat(modifierNode!
@@ -70,7 +70,7 @@ namespace CSharpSandbox.Tests
         {
             switch (node)
             {
-                case TokenNode tnode:
+                case Token tnode:
                     return tnode.ToString();
                 case ParseNode pnode:
                     switch (rule.Name)
@@ -81,7 +81,7 @@ namespace CSharpSandbox.Tests
                             var modifiers = ((ParseNode)pnode[0])
                                 .Select(GetModifierName);
 
-                            var key = (TokenNode)pnode[1];
+                            var key = (Token)pnode[1];
 
                             return $"{string.Join("+", modifiers)}+{key}";
                         default:
@@ -94,11 +94,11 @@ namespace CSharpSandbox.Tests
 
         private string GetModifierName(IParseNode node)
         {
-            var tnode = node as TokenNode;
+            var tnode = node as Token;
 
             if (tnode == null && node is ParseNode pnode)
             {
-                tnode = (TokenNode)pnode[0];
+                tnode = (Token)pnode[0];
             }
 
             if (tnode == null)

@@ -8,9 +8,9 @@ public interface IParser
 
     string RootName { get; }
 
-    PatternRule DefineLiteral(string name, string literal);
+    Pattern DefineLiteral(string name, string literal);
 
-    PatternRule DefinePattern(string name, string pattern);
+    Pattern DefinePattern(string name, string pattern);
 
     NamedRule DefineRule(string name, string value);
 

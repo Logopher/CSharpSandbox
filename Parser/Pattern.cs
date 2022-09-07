@@ -5,19 +5,23 @@ using System.Text.RegularExpressions;
 
 namespace CSharpSandbox.Parsing;
 
-public sealed class Pattern
+public sealed class Pattern : INamedRule
 {
     private readonly IParser _parser;
     private readonly ILogger _logger;
 
+    public string Name { get; }
+
     public Regex Regexp { get; }
 
-    internal static Pattern FromLiteral(IParser parser, string s, ILogger logger) => new(parser, Regex.Escape(s), logger);
+    internal static Pattern FromLiteral(IParser parser, string name, string s, ILogger logger) => new(parser, name, Regex.Escape(s), logger);
 
-    internal Pattern(IParser parser, string regexp, ILogger logger)
+    internal Pattern(IParser parser, string name, string regexp, ILogger logger)
     {
         _parser = parser;
         _logger = logger;
+
+        Name = name;
         Regexp = new Regex($@"^({regexp})");
     }
 
@@ -41,4 +45,6 @@ public sealed class Pattern
     }
 
     public override string ToString() => $"/{Regexp}/";
+
+    public string ToString(IParseNode parseNode) => (Token)parseNode;
 }
