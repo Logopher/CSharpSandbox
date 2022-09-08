@@ -10,7 +10,7 @@ public sealed class Token : IParseNode
 
     public string Lexeme { get; }
 
-    private readonly Dictionary<IRule, Tuple<IParseNode, int>> _matchingRules = new();
+    private readonly Dictionary<IRule, Match> _matchingRules = new();
 
     public NodeType NodeType { get; } = NodeType.Token;
 
@@ -22,11 +22,24 @@ public sealed class Token : IParseNode
         Lexeme = lexeme;
     }
 
-    public bool HasMatchingRule(IRule rule, [NotNullWhen(true)] out Tuple<IParseNode, int>? node) => _matchingRules.TryGetValue(rule, out node);
+    internal bool TryGetCachedMatch(IRule rule, [NotNullWhen(true)] out Match? match) => _matchingRules.TryGetValue(rule, out match);
 
-    public void AddMatchingRule(IRule rule, IParseNode node, int count) => _matchingRules.Add(rule, Tuple.Create(node, count));
+    internal void AddMatchingRule(IRule rule, IParseNode node, int count) => _matchingRules.Add(rule, new(node, count));
 
     public override string ToString() => Lexeme;
 
     public static implicit operator string(Token token) => token.ToString();
+
+    internal class Match
+    {
+        public IParseNode Node { get; }
+
+        public int Index { get; }
+
+        public Match(IParseNode node, int index)
+        {
+            Node = node;
+            Index = index;
+        }
+    }
 }

@@ -65,11 +65,11 @@ public abstract class Parser<TResult> : IParser
     protected IParseNode? Parse<TRule>(TRule rule, TokenList tokens)
         where TRule : IRule
     {
-        if (0 < tokens.Count && tokens[0].HasMatchingRule(rule, out Tuple<IParseNode, int>? tuple))
+        if (tokens.TryGetCachedMatch(rule, out Token.Match? match))
         {
             Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
-            tokens.Cursor = tuple.Item2;
-            return tuple.Item1;
+            tokens.Reset(match);
+            return match.Node;
         }
 
         switch (rule)
@@ -97,19 +97,23 @@ public abstract class Parser<TResult> : IParser
 
             case Pattern pattern:
                 {
-                    if (tokens.Count == 0)
+                    var tempTokens = tokens.Fork();
+
+                    if (tempTokens.Count == 0)
                     {
                         return null;
                     }
 
-                    var first = tokens[0];
+                    var first = tempTokens[0];
 
                     Logger.LogTrace("PATTERN {Name} MATCH? {Token}", pattern.Name, first);
                     var result = first.Rule == pattern;
                     Logger.LogTrace("PATTERN {Name} MATCH {Result} {Token}", pattern.Name, result ? "PASSED" : "FAILED", first);
                     if (result)
                     {
-                        first.AddMatchingRule(rule, first, ++tokens.Cursor);
+                        tempTokens.Advance();
+                        first.AddMatchingRule(rule, first, tempTokens.Cursor);
+                        tokens.Merge(tempTokens);
                         return first;
                     }
 
@@ -186,7 +190,7 @@ public abstract class Parser<TResult> : IParser
     public TokenList Tokenize(string input)
     {
         StringBuilder builder = new(input);
-        TokenList result = new();
+        var result = new List<Token>();
         var length = builder.Length;
         while (0 < builder.Length)
         {
@@ -206,7 +210,7 @@ public abstract class Parser<TResult> : IParser
 
             length = builder.Length;
         }
-        return result;
+        return TokenList.Create(result);
     }
 
     public TResult Parse(string input)

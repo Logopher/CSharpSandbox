@@ -1,62 +1,64 @@
-﻿using System.Collections;
+﻿using CSharpSandbox.Common;
+using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CSharpSandbox.Parsing;
 
-public sealed class TokenList : IList<Token>
+public sealed class TokenList : IReadOnlyList<Token>
 {
-    readonly List<Token> _tokens = new();
+    public static TokenList Create(IEnumerable<Token> tokens) => new(tokens.ToArray());
+    public static TokenList Create(params Token[] tokens) => Create(tokens);
 
-    public int Cursor { get; set; }
+    readonly TokenList? _parent;
+
+    readonly IReadOnlyList<Token> _tokens;
+
+    public int Cursor { get; private set; }
 
     public int Count => _tokens.Count - Cursor;
 
-    bool ICollection<Token>.IsReadOnly => false;
+    public Token this[int index] => _tokens[index + Cursor];
 
-    public Token this[int index]
+    public IEnumerable<Token> this[Range range]
     {
-        get => _tokens[index + Cursor];
-        set => _tokens[index + Cursor] = value;
-    }
-
-    public override string ToString() => string.Join(" ", this);
-
-    int IList<Token>.IndexOf(Token item) => _tokens.IndexOf(item, Cursor) - Cursor;
-
-    void ICollection<Token>.CopyTo(Token[] array, int arrayIndex) => _tokens.CopyTo(Cursor, array, arrayIndex, Count);
-
-    void IList<Token>.Insert(int index, Token item) => _tokens.Insert(index + Cursor, item);
-
-    void IList<Token>.RemoveAt(int index) => _tokens.RemoveAt(index + Cursor);
-
-    bool ICollection<Token>.Contains(Token item) => _tokens.IndexOf(item, Cursor) != -1;
-
-    bool ICollection<Token>.Remove(Token item)
-    {
-        var index = _tokens.IndexOf(item, Cursor);
-        var result = index != -1;
-        if (result)
+        get
         {
-            _tokens.RemoveAt(index);
+            var start = range.Start.GetOffset(Count) + Cursor;
+            var end = range.End.GetOffset(Count);
+            return _tokens.Skip(start).Take(end - start);
         }
-        return result;
     }
 
-    void ICollection<Token>.Clear()
+    private TokenList(TokenList parent)
     {
-        _tokens.Clear();
-        Cursor = 0;
-    }
+        _parent = parent;
+        _tokens = parent._tokens;
 
-    public void Commit()
+        Cursor = parent.Cursor;
+    }
+    private TokenList(IReadOnlyList<Token> tokens) => _tokens = tokens.ToList();
+
+    public override string ToString() => string.Join(Mundane.EmptyString, this);
+
+    public void Advance(int count = 1)
     {
-        _tokens.RemoveRange(0, Cursor);
-        Cursor = 0;
+        if(count <= 0)
+        {
+            throw new InvalidOperationException();
+        }
+
+        Cursor += count;
     }
 
     public TokenList Fork() => new(this);
 
     public void Merge(TokenList tokens)
     {
+        if (tokens._parent != this)
+        {
+            throw new InvalidOperationException();
+        }
+
         if (tokens.Cursor < Cursor)
         {
             throw new Exception();
@@ -65,54 +67,20 @@ public sealed class TokenList : IList<Token>
         Cursor = tokens.Cursor;
     }
 
-    private IEnumerable<Token> Range(int index, int count)
-    {
-        if (count < index)
-        {
-            throw new IndexOutOfRangeException();
-        }
-
-        for (var i = index; i < count; i++)
-        {
-            yield return _tokens[i];
-        }
-    }
-
-    private IEnumerable<Token> Range(int index) => Range(index, Count);
-
-    public IEnumerator<Token> GetEnumerator()
-    {
-        for (var i = Cursor; i < _tokens.Count; i++)
-        {
-            yield return _tokens[i];
-        }
-    }
-
-    public TokenList()
-    {
-    }
-
-    public TokenList(TokenList other)
-    {
-        _tokens = other._tokens.ToList();
-        Cursor = other.Cursor;
-    }
-
-    public TokenList(IEnumerable<Token> tokens)
-    {
-        _tokens = tokens.ToList();
-    }
-
-    public TokenList(params Token[] tokens)
-        : this((IEnumerable<Token>)tokens)
-    {
-    }
-
-    #region Everything else is forwarded to _tokens.
-    public void Add(Token item) => _tokens.Add(item);
-
-    public void AddRange(IEnumerable<Token> collection) => _tokens.AddRange(collection);
+    public IEnumerator<Token> GetEnumerator() => _tokens.Skip(Cursor).GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    #endregion
+
+    internal bool TryGetCachedMatch(IRule rule, [NotNullWhen(true)] out Token.Match? match)
+    {
+        if(Count == 0)
+        {
+            match = null;
+            return false;
+        }
+
+        return this[0].TryGetCachedMatch(rule, out match);
+    }
+
+    internal void Reset(Token.Match match) => Cursor = match.Index;
 }

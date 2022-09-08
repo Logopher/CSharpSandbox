@@ -42,7 +42,7 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
         {
             var start = range.Start.GetOffset(Count);
             var end = range.End.GetOffset(Count);
-            return this.Skip(start).Take(end);
+            return this.Skip(start).Take(end - start);
         }
     }
 
