@@ -88,7 +88,7 @@ public abstract class Parser<TResult> : IParser
                     {
                         var pnode = new ParseNode(namedRule, temp!);
                         tokens[0].AddMatchingRule(namedRule, pnode, tempTokens.Cursor);
-                        tokens.Merge(tempTokens);
+                        tempTokens.Merge();
                         return pnode;
                     }
 
@@ -113,7 +113,7 @@ public abstract class Parser<TResult> : IParser
                     {
                         tempTokens.Advance();
                         first.AddMatchingRule(rule, first, tempTokens.Cursor);
-                        tokens.Merge(tempTokens);
+                        tempTokens.Merge();
                         return first;
                     }
 
@@ -249,7 +249,7 @@ public abstract class Parser<TResult> : IParser
                     {
                         var pnode = new ParseNode(rule, nodes.ToArray());
                         tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
-                        tokens.Merge(tempTokens);
+                        tempTokens.Merge();
                         return pnode;
                     }
                 }
@@ -277,7 +277,7 @@ public abstract class Parser<TResult> : IParser
                     {
                         var pnode = new ParseNode(rule, temp!);
                         tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
-                        tokens.Merge(tempTokens);
+                        tempTokens.Merge();
                         return pnode;
                     }
                 }
@@ -311,7 +311,7 @@ public abstract class Parser<TResult> : IParser
                     {
                         var pnode = new ParseNode(rule, temp!);
                         tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
-                        tokens.Merge(tempTokens);
+                        tempTokens.Merge();
                         return pnode;
                     }
                     else
@@ -357,7 +357,7 @@ public abstract class Parser<TResult> : IParser
                     {
                         tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
                     }
-                    tokens.Merge(tempTokens);
+                    tempTokens.Merge();
                     return pnode;
                 }
         }

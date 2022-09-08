@@ -42,7 +42,7 @@ public sealed class TokenList : IReadOnlyList<Token>
 
     public void Advance(int count = 1)
     {
-        if(count <= 0)
+        if (count <= 0)
         {
             throw new InvalidOperationException();
         }
@@ -52,19 +52,19 @@ public sealed class TokenList : IReadOnlyList<Token>
 
     public TokenList Fork() => new(this);
 
-    public void Merge(TokenList tokens)
+    public void Merge()
     {
-        if (tokens._parent != this)
+        if (_parent == null)
         {
             throw new InvalidOperationException();
         }
 
-        if (tokens.Cursor < Cursor)
+        if (Cursor < _parent.Cursor)
         {
             throw new Exception();
         }
 
-        Cursor = tokens.Cursor;
+        _parent.Cursor = Cursor;
     }
 
     public IEnumerator<Token> GetEnumerator() => _tokens.Skip(Cursor).GetEnumerator();
@@ -73,7 +73,7 @@ public sealed class TokenList : IReadOnlyList<Token>
 
     internal bool TryGetCachedMatch(IRule rule, [NotNullWhen(true)] out Token.Match? match)
     {
-        if(Count == 0)
+        if (Count == 0)
         {
             match = null;
             return false;
