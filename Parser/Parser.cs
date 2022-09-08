@@ -148,7 +148,7 @@ public abstract class Parser<TResult> : IParser
 
     internal NamedRule DefineRule(string name, string rule)
     {
-        var namedRule = MetaParser.ParseRule(this, E.BaseExpr3, rule);
+        var namedRule = MetaParser.ParseRuleDefinition(this, E.BaseExpr3, rule);
         _rules.Add(name, namedRule);
         return namedRule;
     }
@@ -161,7 +161,7 @@ public abstract class Parser<TResult> : IParser
     }
 
     Pattern IParser.DefineLiteral(string name, string pattern) => DefineLiteral(name, pattern);
-    NamedRule IParser.DefineRule(string name, string rule) => MetaParser.ParseRule(this, name, rule);
+    NamedRule IParser.DefineRule(string name, string rule) => MetaParser.ParseRuleDefinition(this, name, rule);
     NamedRule IParser.DefineRule(string name, RuleSegment segment) => DefineRule(name, segment);
 
     public INamedRule GetRule(string name)

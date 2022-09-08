@@ -25,7 +25,7 @@ public interface IParser
 
 public interface IMetaParser : IParser
 {
-    NamedRule ParseRule(IParser parser, string ruleName, string rule);
+    NamedRule ParseRuleDefinition(IParser parser, string ruleName, string rule);
 }
 
 internal interface IMetaParser_internal : IMetaParser

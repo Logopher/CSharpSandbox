@@ -231,7 +231,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
                     _ => throw new Exception(),
                 };
 
-                return RuleSegment.RepeatRange(this, innerRule, min, max);
+                return RuleSegment.RepeatRange(parser, innerRule, min, max);
             });
         });
 
@@ -285,13 +285,13 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         return parser;
     }
 
-    public NamedRule ParseRule(IParser parser, string ruleName, string input)
+    public NamedRule ParseRuleDefinition(IParser parser, string name, string input)
     {
-        var namedRule = GetRule(ruleName) as NamedRule ?? throw new Exception();
+        var namedRule = GetRule(name) as NamedRule ?? throw new Exception();
 
         var parseTree = Parse(namedRule, input) as ParseNode ?? throw new Exception();
 
-        return ResolveRuleDeclaration(this, parseTree);
+        return ResolveRuleDeclaration(parser, parseTree);
     }
 
     public void DirectSyntax(string name, Func<IParser, IParseNode, IRule> mapping)
