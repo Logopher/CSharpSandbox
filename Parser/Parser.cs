@@ -12,12 +12,11 @@ public abstract class Parser<TResult> : IParser
 {
     private readonly IMetaParser? _metaParser;
 
-    private NamedRule? _root;
-    private ParseNode? _rootNode;
-    private ParseNode? _currentNode;
+    private NamedRule? _rootRule;
+    private IRule? _currentRule;
+    private IParseNode? _recentNode;
 
     private int _index;
-
     internal readonly Dictionary<string, Pattern> _patternRules = new();
     internal readonly Dictionary<string, INamedRule> _rules = new();
     internal readonly Dictionary<string, LazyNamedRule> _lazyRules = new();
@@ -28,28 +27,26 @@ public abstract class Parser<TResult> : IParser
 
     public bool IsParsing { get; private set; }
 
-    public string RootName { get; }
+    public string RootRuleName { get; }
 
-    public ParseNode RootNode => _rootNode ?? throw new Exception();
+    public IParseNode? RecentNode => _recentNode ?? throw new Exception();
 
-    public ParseNode CurrentNode => _currentNode ?? throw new Exception();
-
-    public IRule CurrentRule => CurrentNode.Rule.Rules[_index];
+    public IRule CurrentRule => _currentRule ?? throw new Exception();
 
     protected internal IMetaParser MetaParser => _metaParser ?? throw new Exception();
 
-    internal NamedRule Root
+    internal NamedRule RootRule
     {
         get
         {
-            if (_root == null)
+            if (_rootRule == null)
             {
-                var namedRule = GetRule(RootName) as NamedRule ?? throw new InvalidOperationException();
+                var namedRule = GetRule(RootRuleName) as NamedRule ?? throw new InvalidOperationException();
 
-                _root = namedRule;
+                _rootRule = namedRule;
             }
 
-            return _root;
+            return _rootRule;
         }
     }
 
@@ -57,21 +54,21 @@ public abstract class Parser<TResult> : IParser
     {
         _metaParser = metaParser;
         Logger = logger;
-        RootName = rootName;
+        RootRuleName = rootName;
     }
 
     public Parser(IMetaParser metaParser, string rootName)
     {
         _metaParser = metaParser;
         Logger = ((IMetaParser_internal)_metaParser).GetLogger();
-        RootName = rootName;
+        RootRuleName = rootName;
     }
 
     internal Parser(string rootName, ILogger logger)
     {
         _metaParser = this as IMetaParser ?? throw new Exception();
         Logger = logger;
-        RootName = rootName;
+        RootRuleName = rootName;
     }
 
     protected IParseNode? Parse(string ruleName, string input)
@@ -86,6 +83,8 @@ public abstract class Parser<TResult> : IParser
 
     protected IParseNode? Parse(IRule rule, TokenList tokens)
     {
+        _currentRule = rule;
+
         IParseNode? resultNode = null;
         using var tempTokens = tokens.Fork();
 
@@ -146,12 +145,18 @@ public abstract class Parser<TResult> : IParser
             }
             Logger.LogTrace("{Prefix} {Name} MATCH {Result} {Tokens}", logPrefix, rule.ToString(), resultNode != null ? "PASSED" : "FAILED", tokens.ToString());
 
-            if (resultNode != null)
+            if (resultNode == null)
+            {
+
+            }
+            else
             {
                 tokens[0].AddMatchingRule(rule, resultNode, tempTokens.Cursor);
                 tempTokens.Merge();
             }
         }
+
+        _recentNode = resultNode;
 
         return resultNode;
     }
@@ -241,7 +246,7 @@ public abstract class Parser<TResult> : IParser
         IsParsing = true;
 
         Logger.LogTrace("Parsing: {Input}", input);
-        var parseTree = Parse(Root, input) as ParseNode ?? throw new Exception();
+        var parseTree = Parse(RootRule, input) as ParseNode ?? throw new Exception();
         Logger.LogTrace("Parse tree produced.");
 
         var result = Parse(parseTree);
@@ -291,21 +296,15 @@ public abstract class Parser<TResult> : IParser
                 Operator.Or,
                 (RuleSegment rule, TokenList tokens) =>
                 {
-                    var tempTokens = tokens.Fork();
                     IParseNode? temp = null;
                     foreach (var r in rule.Rules)
                     {
+                        using var tempTokens = tokens.Fork();
                         temp = Parse(r!, tempTokens);
                         if (temp != null)
                         {
                             tempTokens.Merge();
-                            tempTokens.Dispose();
                             return Tuple.Create(true, (ParseNode?)new ParseNode(rule, temp), true);
-                        }
-                        else
-                        {
-                            tempTokens.Dispose();
-                            tempTokens = tokens.Fork();
                         }
                     }
 

@@ -6,7 +6,7 @@ public interface IParser
 {
     Type ResultType { get; }
 
-    string RootName { get; }
+    string RootRuleName { get; }
 
     Pattern DefineLiteral(string name, string literal);
 
@@ -22,9 +22,7 @@ public interface IParser
 
     string ToString(INamedRule rule, IParseNode node);
 
-    ParseNode? RootNode { get; }
-
-    ParseNode CurrentNode { get; }
+    IParseNode? RecentNode { get; }
 
     IRule CurrentRule { get; }
 }
