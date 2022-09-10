@@ -1,15 +1,16 @@
 ﻿using CSharpSandbox.Common;
 using System.Collections;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace CSharpSandbox.Parsing;
 
-public sealed class TokenList : IReadOnlyList<Token>
+public sealed class TokenList : IReadOnlyList<Token>, IDisposable
 {
     public static TokenList Create(IEnumerable<Token> tokens) => new(tokens.ToArray());
     public static TokenList Create(params Token[] tokens) => Create(tokens);
 
-    readonly TokenList? _parent;
+    TokenList? _parent;
 
     readonly IReadOnlyList<Token> _tokens;
 
@@ -22,12 +23,12 @@ public sealed class TokenList : IReadOnlyList<Token>
         get => _cursor;
         private set
         {
-            if (IsDiscarded)
+            if (IsDisposed)
             {
                 throw new InvalidOperationException();
             }
 
-            if(_forks.Any())
+            if (_forks.Any())
             {
                 throw new InvalidOperationException();
             }
@@ -38,7 +39,7 @@ public sealed class TokenList : IReadOnlyList<Token>
 
     public int Count => _tokens.Count - Cursor;
 
-    public bool IsDiscarded { get; private set; }
+    public bool IsDisposed { get; private set; }
 
     public Token this[int index] => _tokens[index + Cursor];
 
@@ -59,6 +60,7 @@ public sealed class TokenList : IReadOnlyList<Token>
 
         Cursor = parent.Cursor;
     }
+
     private TokenList(IReadOnlyList<Token> tokens) => _tokens = tokens.ToList();
 
     public override string ToString() => string.Join(Mundane.EmptyString, this);
@@ -75,7 +77,7 @@ public sealed class TokenList : IReadOnlyList<Token>
 
     public TokenList Fork()
     {
-        if (IsDiscarded)
+        if (IsDisposed)
         {
             throw new InvalidOperationException();
         }
@@ -103,22 +105,22 @@ public sealed class TokenList : IReadOnlyList<Token>
             throw new Exception();
         }
 
-        Discard();
+        var parent = _parent;
 
-        _parent.Cursor = Cursor;
+        Detach();
+
+        parent.Cursor = Cursor;
     }
 
-    public void Discard()
+    private void Detach()
     {
-        if (IsDiscarded)
+        if (_parent == null)
         {
             throw new InvalidOperationException();
         }
 
-        IsDiscarded = true;
-
-        (_parent ?? throw new InvalidOperationException())
-            ._forks.Remove(this);
+        _parent._forks.Remove(this);
+        _parent = null;
     }
 
     public IEnumerator<Token> GetEnumerator() => _tokens.Skip(Cursor).GetEnumerator();
@@ -127,7 +129,7 @@ public sealed class TokenList : IReadOnlyList<Token>
 
     internal bool TryGetCachedMatch(IRule rule, [NotNullWhen(true)] out Token.Match? match)
     {
-        if (IsDiscarded)
+        if (IsDisposed)
         {
             throw new InvalidOperationException();
         }
@@ -142,4 +144,19 @@ public sealed class TokenList : IReadOnlyList<Token>
     }
 
     internal void Reset(Token.Match match) => Cursor = match.Index;
+
+    public void Dispose()
+    {
+        if (IsDisposed)
+        {
+            throw new InvalidOperationException();
+        }
+
+        IsDisposed = true;
+
+        if (_parent != null)
+        {
+            Detach();
+        }
+    }
 }

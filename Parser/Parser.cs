@@ -74,19 +74,26 @@ public abstract class Parser<TResult> : IParser
         RootName = rootName;
     }
 
+    protected IParseNode? Parse(string ruleName, string input)
+        => Parse(GetRule(ruleName), input);
+
     protected IParseNode? Parse(IRule rule, string input)
-        => Parse(rule, Tokenize(input));
+    {
+        using var tokens = Tokenize(input);
+        var parseTree = Parse(rule, tokens);
+        return parseTree;
+    }
 
     protected IParseNode? Parse(IRule rule, TokenList tokens)
     {
         IParseNode? resultNode = null;
-        var tempTokens = tokens.Fork();
+        using var tempTokens = tokens.Fork();
 
         if (tempTokens.TryGetCachedMatch(rule, out Token.Match? match))
         {
-            tempTokens.Discard();
             Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
-            tokens.Reset(match);
+            tempTokens.Reset(match);
+            tempTokens.Merge();
             resultNode = match.Node;
         }
         else
@@ -144,17 +151,10 @@ public abstract class Parser<TResult> : IParser
                 tokens[0].AddMatchingRule(rule, resultNode, tempTokens.Cursor);
                 tempTokens.Merge();
             }
-            else
-            {
-                tempTokens.Discard();
-            }
         }
 
         return resultNode;
     }
-
-    protected IParseNode? Parse(string ruleName, string input)
-        => Parse(GetRule(ruleName), Tokenize(input));
 
     internal Pattern DefinePattern(Pattern pattern)
     {
@@ -292,7 +292,6 @@ public abstract class Parser<TResult> : IParser
                 (RuleSegment rule, TokenList tokens) =>
                 {
                     var tempTokens = tokens.Fork();
-                    var match = false;
                     IParseNode? temp = null;
                     foreach (var r in rule.Rules)
                     {
@@ -300,11 +299,12 @@ public abstract class Parser<TResult> : IParser
                         if (temp != null)
                         {
                             tempTokens.Merge();
+                            tempTokens.Dispose();
                             return Tuple.Create(true, (ParseNode?)new ParseNode(rule, temp), true);
                         }
                         else
                         {
-                            tempTokens.Discard();
+                            tempTokens.Dispose();
                             tempTokens = tokens.Fork();
                         }
                     }
@@ -317,7 +317,7 @@ public abstract class Parser<TResult> : IParser
                 Operator.Not,
                 (RuleSegment rule, TokenList tokens) =>
                 {
-                    var tempTokens = tokens.Fork();
+                    using var tempTokens = tokens.Fork();
                     var r = rule.Rules.Single();
                     var temp = Parse(r, tempTokens);
                     var match = temp == null;
@@ -336,7 +336,8 @@ public abstract class Parser<TResult> : IParser
                 Operator.Option,
                 (RuleSegment rule, TokenList tokens) =>
                 {
-                    var tempTokens = tokens.Fork();
+                    using var tempTokens = tokens.Fork();
+
                     var r = rule.Rules.Single();
                     var temp = Parse(r, tempTokens);
                     var match = temp != null;
@@ -349,8 +350,6 @@ public abstract class Parser<TResult> : IParser
                     }
                     else
                     {
-                        tempTokens.Discard();
-
                         var pnode = new ParseNode(rule);
                         return Tuple.Create(true, (ParseNode?)pnode, true);
                     }
@@ -361,7 +360,7 @@ public abstract class Parser<TResult> : IParser
                 Operator.Repeat,
                 (RuleSegment rule, TokenList tokens) =>
                 {
-                    var tempTokens = tokens.Fork();
+                    using var tempTokens = tokens.Fork();
                     var r = rule.Rules.Single();
                     var nodes = new List<IParseNode>();
 
@@ -377,7 +376,6 @@ public abstract class Parser<TResult> : IParser
                         }
                         else if (i < min)
                         {
-                            tempTokens.Discard();
                             return Tuple.Create(false, (ParseNode?)null, false);
                         }
                         else
@@ -394,17 +392,14 @@ public abstract class Parser<TResult> : IParser
         };
 
         Logger.LogTrace("RULE {Rule} MATCH? {Tokens}", rule, tokens.ToString());
-        var tempTokens = tokens.Fork();
+
+        using var tempTokens = tokens.Fork();
         var result = directory[rule.Operator](rule, tempTokens);
         Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, result.Item1 ? "PASSED" : "FAILED", tokens.ToString());
 
         if (result.Item3)
         {
             tempTokens.Merge();
-        }
-        else
-        {
-            tempTokens.Discard();
         }
 
         return result.Item2;
