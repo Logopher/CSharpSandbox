@@ -20,6 +20,11 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
     public NodeType NodeType { get; }
 
     /// <summary>
+    /// The node whose child this node is.
+    /// </summary>
+    public ParseNode? Parent { get; set; }
+
+    /// <summary>
     /// The number of children this node has.
     /// </summary>
     public int Count => Children.Count;
@@ -79,6 +84,11 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
         NodeType = NodeType.Segment;
         Rule = rule;
         Children = nodes;
+
+        foreach(var node in nodes)
+        {
+            node.Parent = this;
+        }
     }
 
     /// <summary>
@@ -89,9 +99,11 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
     /// <param name="node">A parse node representing text which conforms to <paramref name="rule"/>.</param>
     internal ParseNode(NamedRule rule, IParseNode node)
     {
-        NodeType = NodeType.Rule;
+        NodeType = NodeType.NamedRule;
         Rule = rule;
         Children = new[] { node };
+
+        node.Parent = this;
     }
 
 

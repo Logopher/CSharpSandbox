@@ -21,6 +21,12 @@ public interface IParser
     LazyNamedRule GetLazyRule(string name);
 
     string ToString(INamedRule rule, IParseNode node);
+
+    ParseNode? RootNode { get; }
+
+    ParseNode CurrentNode { get; }
+
+    IRule CurrentRule { get; }
 }
 
 public interface IMetaParser : IParser
@@ -47,11 +53,13 @@ public enum NodeType
 {
     Segment,
     Token,
-    Rule,
+    NamedRule,
 }
 
 public interface IRule
 {
+    IReadOnlyList<IRule> Rules { get; }
+
     string ToString();
 
     string ToString(IParseNode parseNode);
@@ -65,6 +73,8 @@ public interface INamedRule : IRule
 public interface IParseNode
 {
     NodeType NodeType { get; }
+
+    ParseNode? Parent { get; set; }
 
     IRule Rule { get; }
 

@@ -13,9 +13,32 @@ public sealed class TokenList : IReadOnlyList<Token>
 
     readonly IReadOnlyList<Token> _tokens;
 
-    public int Cursor { get; private set; }
+    readonly List<TokenList> _forks = new();
+
+    int _cursor;
+
+    public int Cursor
+    {
+        get => _cursor;
+        private set
+        {
+            if (IsDiscarded)
+            {
+                throw new InvalidOperationException();
+            }
+
+            if(_forks.Any())
+            {
+                throw new InvalidOperationException();
+            }
+
+            _cursor = value;
+        }
+    }
 
     public int Count => _tokens.Count - Cursor;
+
+    public bool IsDiscarded { get; private set; }
 
     public Token this[int index] => _tokens[index + Cursor];
 
@@ -50,7 +73,23 @@ public sealed class TokenList : IReadOnlyList<Token>
         Cursor += count;
     }
 
-    public TokenList Fork() => new(this);
+    public TokenList Fork()
+    {
+        if (IsDiscarded)
+        {
+            throw new InvalidOperationException();
+        }
+
+        // For now, only allow 1 fork.
+        if (0 < _forks.Count)
+        {
+            throw new InvalidOperationException();
+        }
+
+        var result = new TokenList(this);
+        _forks.Add(result);
+        return result;
+    }
 
     public void Merge()
     {
@@ -64,7 +103,22 @@ public sealed class TokenList : IReadOnlyList<Token>
             throw new Exception();
         }
 
+        Discard();
+
         _parent.Cursor = Cursor;
+    }
+
+    public void Discard()
+    {
+        if (IsDiscarded)
+        {
+            throw new InvalidOperationException();
+        }
+
+        IsDiscarded = true;
+
+        (_parent ?? throw new InvalidOperationException())
+            ._forks.Remove(this);
     }
 
     public IEnumerator<Token> GetEnumerator() => _tokens.Skip(Cursor).GetEnumerator();
@@ -73,6 +127,11 @@ public sealed class TokenList : IReadOnlyList<Token>
 
     internal bool TryGetCachedMatch(IRule rule, [NotNullWhen(true)] out Token.Match? match)
     {
+        if (IsDiscarded)
+        {
+            throw new InvalidOperationException();
+        }
+
         if (Count == 0)
         {
             match = null;

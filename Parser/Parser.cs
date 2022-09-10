@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,16 +10,31 @@ namespace CSharpSandbox.Parsing;
 
 public abstract class Parser<TResult> : IParser
 {
+    private readonly IMetaParser? _metaParser;
+
+    private NamedRule? _root;
+    private ParseNode? _rootNode;
+    private ParseNode? _currentNode;
+
+    private int _index;
+
     internal readonly Dictionary<string, Pattern> _patternRules = new();
     internal readonly Dictionary<string, INamedRule> _rules = new();
     internal readonly Dictionary<string, LazyNamedRule> _lazyRules = new();
 
-    private NamedRule? _root;
-    private readonly IMetaParser? _metaParser;
     protected ILogger Logger { get; }
 
     public Type ResultType => typeof(TResult);
+
+    public bool IsParsing { get; private set; }
+
     public string RootName { get; }
+
+    public ParseNode RootNode => _rootNode ?? throw new Exception();
+
+    public ParseNode CurrentNode => _currentNode ?? throw new Exception();
+
+    public IRule CurrentRule => CurrentNode.Rule.Rules[_index];
 
     protected internal IMetaParser MetaParser => _metaParser ?? throw new Exception();
 
@@ -58,78 +74,85 @@ public abstract class Parser<TResult> : IParser
         RootName = rootName;
     }
 
-    protected IParseNode? Parse<TRule>(TRule rule, string input)
-        where TRule : IRule
+    protected IParseNode? Parse(IRule rule, string input)
         => Parse(rule, Tokenize(input));
 
-    protected IParseNode? Parse<TRule>(TRule rule, TokenList tokens)
-        where TRule : IRule
+    protected IParseNode? Parse(IRule rule, TokenList tokens)
     {
-        if (tokens.TryGetCachedMatch(rule, out Token.Match? match))
+        IParseNode? resultNode = null;
+        var tempTokens = tokens.Fork();
+
+        if (tempTokens.TryGetCachedMatch(rule, out Token.Match? match))
         {
+            tempTokens.Discard();
             Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
             tokens.Reset(match);
-            return match.Node;
+            resultNode = match.Node;
         }
-
-        switch (rule)
+        else
         {
-            case LazyNamedRule lazy:
-                return Parse(lazy.Rule, tokens);
+            var logPrefix = rule switch
+            {
+                Pattern => "PATTERN",
+                LazyNamedRule or NamedRule => "RULE",
+                RepeatRule or RuleSegment => "SEGMENT",
+                _ => throw new Exception(),
+            };
 
-            case NamedRule namedRule:
-                {
-                    var tempTokens = tokens.Fork();
-                    Logger.LogTrace("RULE {Name} MATCH? {Tokens}", namedRule.Name, tokens.ToString());
-                    var temp = Parse(namedRule.Rule, tempTokens);
-                    var result = temp != null;
-                    Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", namedRule.Name, result ? "PASSED" : "FAILED", tokens.ToString());
-                    if (result)
+            // By the end of the switch, `node` should be non-null, unless the match failed.
+
+            Logger.LogTrace("{Prefix} {Name} MATCH? {Tokens}", logPrefix, rule.ToString(), tokens.ToString());
+            switch (rule)
+            {
+                case LazyNamedRule lazy:
+                    resultNode = Parse(lazy.Rule, tempTokens);
+                    break;
+                case Pattern:
                     {
-                        var pnode = new ParseNode(namedRule, temp!);
-                        tokens[0].AddMatchingRule(namedRule, pnode, tempTokens.Cursor);
-                        tempTokens.Merge();
-                        return pnode;
+                        var temp = tempTokens.FirstOrDefault();
+                        if (temp?.Rule == rule)
+                        {
+                            resultNode = temp;
+                            tempTokens.Advance();
+                        }
                     }
-
-                    return null;
-                }
-
-            case Pattern pattern:
-                {
-                    var tempTokens = tokens.Fork();
-
-                    if (tempTokens.Count == 0)
+                    break;
+                case NamedRule:
                     {
-                        return null;
+                        var namedRule = (NamedRule)rule;
+                        var temp = Parse(namedRule.Rule, tempTokens);
+
+                        if (temp != null)
+                        {
+                            resultNode = new ParseNode(namedRule, temp);
+                        }
                     }
+                    break;
+                case RepeatRule repeatRule:
+                    resultNode = ParseRuleSegment(repeatRule, tempTokens);
+                    break;
+                case RuleSegment ruleSegment:
+                    resultNode = ParseRuleSegment(ruleSegment, tempTokens);
+                    break;
+                default:
+                    throw new Exception();
+            }
+            Logger.LogTrace("{Prefix} {Name} MATCH {Result} {Tokens}", logPrefix, rule.ToString(), resultNode != null ? "PASSED" : "FAILED", tokens.ToString());
 
-                    var first = tempTokens[0];
-
-                    Logger.LogTrace("PATTERN {Name} MATCH? {Token}", pattern.Name, first);
-                    var result = first.Rule == pattern;
-                    Logger.LogTrace("PATTERN {Name} MATCH {Result} {Token}", pattern.Name, result ? "PASSED" : "FAILED", first);
-                    if (result)
-                    {
-                        tempTokens.Advance();
-                        first.AddMatchingRule(rule, first, tempTokens.Cursor);
-                        tempTokens.Merge();
-                        return first;
-                    }
-
-                    return null;
-                }
-
-            case RepeatRule repeatRule:
-                return ParseRuleSegment(repeatRule, tokens);
-
-            case RuleSegment ruleSegment:
-                return ParseRuleSegment(ruleSegment, tokens);
-
-            default:
-                throw new Exception();
+            if (resultNode != null)
+            {
+                tokens[0].AddMatchingRule(rule, resultNode, tempTokens.Cursor);
+                tempTokens.Merge();
+            }
+            else
+            {
+                tempTokens.Discard();
+            }
         }
+
+        return resultNode;
     }
+
     protected IParseNode? Parse(string ruleName, string input)
         => Parse(GetRule(ruleName), Tokenize(input));
 
@@ -215,25 +238,40 @@ public abstract class Parser<TResult> : IParser
 
     public TResult Parse(string input)
     {
+        IsParsing = true;
+
         Logger.LogTrace("Parsing: {Input}", input);
         var parseTree = Parse(Root, input) as ParseNode ?? throw new Exception();
         Logger.LogTrace("Parse tree produced.");
-        return Parse(parseTree);
+
+        var result = Parse(parseTree);
+
+        IsParsing = false;
+
+        return result;
     }
 
     private IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens)
     {
-        Logger.LogTrace("RULE {Rule} MATCH? {Tokens}", rule, tokens.ToString());
-        switch (rule.Operator)
+        if (tokens.TryGetCachedMatch(rule, out Token.Match? match))
         {
-            case Operator.And:
+            Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
+            tokens.Reset(match);
+            return match.Node;
+        }
+
+        Dictionary<Operator, Func<RuleSegment, TokenList, Tuple<bool, ParseNode?, bool>>> directory = new()
+        {
+            {
+                Operator.And,
+                (RuleSegment rule, TokenList tokens) =>
                 {
-                    var tempTokens = tokens.Fork();
                     var match = true;
+
                     var nodes = new List<IParseNode>();
                     foreach (var r in rule.Rules)
                     {
-                        var temp = Parse(r!, tempTokens);
+                        var temp = Parse(r!, tokens);
                         if (temp != null)
                         {
                             nodes.Add(temp);
@@ -244,17 +282,14 @@ public abstract class Parser<TResult> : IParser
                             break;
                         }
                     }
-                    Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
-                    if (match)
-                    {
-                        var pnode = new ParseNode(rule, nodes.ToArray());
-                        tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
-                        tempTokens.Merge();
-                        return pnode;
-                    }
+
+                    return Tuple.Create(match, match ? new ParseNode(rule, nodes.ToArray()) : null, match);
                 }
-                break;
-            case Operator.Or:
+            },
+
+            {
+                Operator.Or,
+                (RuleSegment rule, TokenList tokens) =>
                 {
                     var tempTokens = tokens.Fork();
                     var match = false;
@@ -264,25 +299,23 @@ public abstract class Parser<TResult> : IParser
                         temp = Parse(r!, tempTokens);
                         if (temp != null)
                         {
-                            match = true;
-                            break;
+                            tempTokens.Merge();
+                            return Tuple.Create(true, (ParseNode?)new ParseNode(rule, temp), true);
                         }
                         else
                         {
+                            tempTokens.Discard();
                             tempTokens = tokens.Fork();
                         }
                     }
-                    Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
-                    if (match)
-                    {
-                        var pnode = new ParseNode(rule, temp!);
-                        tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
-                        tempTokens.Merge();
-                        return pnode;
-                    }
+
+                    return Tuple.Create(false, (ParseNode?)null, false);
                 }
-                break;
-            case Operator.Not:
+            },
+
+            {
+                Operator.Not,
+                (RuleSegment rule, TokenList tokens) =>
                 {
                     var tempTokens = tokens.Fork();
                     var r = rule.Rules.Single();
@@ -292,15 +325,16 @@ public abstract class Parser<TResult> : IParser
                     if (match)
                     {
                         var pnode = new ParseNode(rule);
-                        if (0 < tokens.Count)
-                        {
-                            tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
-                        }
-                        return pnode;
+                        return Tuple.Create(true, (ParseNode?)pnode, false);
                     }
+
+                    return Tuple.Create(false, (ParseNode?)null, false);
                 }
-                break;
-            case Operator.Option:
+            },
+
+            {
+                Operator.Option,
+                (RuleSegment rule, TokenList tokens) =>
                 {
                     var tempTokens = tokens.Fork();
                     var r = rule.Rules.Single();
@@ -310,21 +344,22 @@ public abstract class Parser<TResult> : IParser
                     if (match)
                     {
                         var pnode = new ParseNode(rule, temp!);
-                        tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
                         tempTokens.Merge();
-                        return pnode;
+                        return Tuple.Create(true, (ParseNode?)pnode, true);
                     }
                     else
                     {
+                        tempTokens.Discard();
+
                         var pnode = new ParseNode(rule);
-                        if (0 < tokens.Count)
-                        {
-                            tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
-                        }
-                        return pnode;
+                        return Tuple.Create(true, (ParseNode?)pnode, true);
                     }
                 }
-            case Operator.Repeat:
+            },
+
+            {
+                Operator.Repeat,
+                (RuleSegment rule, TokenList tokens) =>
                 {
                     var tempTokens = tokens.Fork();
                     var r = rule.Rules.Single();
@@ -342,8 +377,8 @@ public abstract class Parser<TResult> : IParser
                         }
                         else if (i < min)
                         {
-                            Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, "FAILED", tokens.ToString());
-                            return null;
+                            tempTokens.Discard();
+                            return Tuple.Create(false, (ParseNode?)null, false);
                         }
                         else
                         {
@@ -351,18 +386,28 @@ public abstract class Parser<TResult> : IParser
                         }
                     }
 
-                    Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, "PASSED", tokens.ToString());
-                    var pnode = new ParseNode(rule, nodes.ToArray());
-                    if (0 < tokens.Count)
-                    {
-                        tokens[0].AddMatchingRule(rule, pnode, tempTokens.Cursor);
-                    }
                     tempTokens.Merge();
-                    return pnode;
+                    var pnode = new ParseNode(rule, nodes.ToArray());
+                    return Tuple.Create(true, (ParseNode?)pnode, true);
                 }
+            }
+        };
+
+        Logger.LogTrace("RULE {Rule} MATCH? {Tokens}", rule, tokens.ToString());
+        var tempTokens = tokens.Fork();
+        var result = directory[rule.Operator](rule, tempTokens);
+        Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, result.Item1 ? "PASSED" : "FAILED", tokens.ToString());
+
+        if (result.Item3)
+        {
+            tempTokens.Merge();
+        }
+        else
+        {
+            tempTokens.Discard();
         }
 
-        return null;
+        return result.Item2;
     }
 
     public abstract TResult Parse(ParseNode parseTree);

@@ -12,6 +12,8 @@ public sealed class Pattern : INamedRule
 
     public string Name { get; }
 
+    public IReadOnlyList<IRule> Rules { get; } = Array.Empty<IRule>();
+
     public Regex Regexp { get; }
 
     internal static Pattern FromLiteral(IParser parser, string name, string s, ILogger logger) => new(parser, name, Regex.Escape(s), logger);
@@ -47,4 +49,8 @@ public sealed class Pattern : INamedRule
     public override string ToString() => $"/{Regexp}/";
 
     public string ToString(IParseNode parseNode) => (Token)parseNode;
+
+    public override int GetHashCode() => Regexp.GetHashCode();
+
+    public override bool Equals(object? obj) => (obj is Pattern p) && Regexp.Equals(p.Regexp);
 }

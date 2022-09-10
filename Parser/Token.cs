@@ -8,6 +8,8 @@ public sealed class Token : IParseNode
 
     IRule IParseNode.Rule => Rule;
 
+    public ParseNode? Parent { get; set; }
+
     public string Lexeme { get; }
 
     private readonly Dictionary<IRule, Match> _matchingRules = new();
