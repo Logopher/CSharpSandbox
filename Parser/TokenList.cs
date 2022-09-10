@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 
 namespace CSharpSandbox.Parsing;
 
@@ -9,6 +10,10 @@ public sealed class TokenList : IReadOnlyList<Token>, IDisposable
 {
     public static TokenList Create(IEnumerable<Token> tokens) => new(tokens.ToArray());
     public static TokenList Create(params Token[] tokens) => Create(tokens);
+
+    static readonly Dictionary<Guid, StackFrame> _stackFrames = new();
+
+    readonly Guid _guid;
 
     TokenList? _parent;
 
@@ -55,13 +60,52 @@ public sealed class TokenList : IReadOnlyList<Token>, IDisposable
 
     private TokenList(TokenList parent)
     {
+        _guid = Guid.NewGuid();
+
         _parent = parent;
         _tokens = parent._tokens;
 
         Cursor = parent.Cursor;
+
+        TrackUsage();
     }
 
-    private TokenList(IReadOnlyList<Token> tokens) => _tokens = tokens.ToList();
+    private TokenList(IReadOnlyList<Token> tokens)
+    {
+        _guid = Guid.NewGuid();
+
+        _tokens = tokens.ToList();
+
+        TrackUsage();
+    }
+
+    ~TokenList()
+    {
+        if (!IsDisposed)
+        {
+            var frame = _stackFrames[_guid];
+            Debug.WriteLine($"The TokenList object create here was never disposed: {frame}");
+            Debugger.Break();
+        }
+        _stackFrames.Remove(_guid);
+    }
+
+    void TrackUsage()
+    {
+        var frame = new StackTrace(true)
+            .GetFrames()
+            .First(f =>
+            {
+                var filepath = f.GetFileName();
+                if (filepath == null)
+                {
+                    return false;
+                }
+                return Path.GetFileName(filepath) != $"{GetType().Name}.cs";
+            });
+
+        _stackFrames.Add(_guid, frame);
+    }
 
     public override string ToString() => string.Join(Mundane.EmptyString, this);
 
@@ -134,6 +178,11 @@ public sealed class TokenList : IReadOnlyList<Token>, IDisposable
             throw new InvalidOperationException();
         }
 
+        if (0 < _forks.Count)
+        {
+            throw new InvalidOperationException();
+        }
+
         if (Count == 0)
         {
             match = null;
@@ -148,6 +197,11 @@ public sealed class TokenList : IReadOnlyList<Token>, IDisposable
     public void Dispose()
     {
         if (IsDisposed)
+        {
+            throw new InvalidOperationException();
+        }
+
+        if (0 < _forks.Count)
         {
             throw new InvalidOperationException();
         }
