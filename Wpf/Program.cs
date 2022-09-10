@@ -12,6 +12,7 @@ using System.Windows;
 using Data.Database;
 using Data;
 using System.Diagnostics;
+using CSharpSandbox.Common;
 
 namespace CSharpSandbox.Wpf;
 
@@ -34,6 +35,10 @@ public class Program
                     loggingBuilder.SetMinimumLevel(LogLevel.Trace);
                     loggingBuilder.AddNLog(config);
                 });
+
+                services.AddSingleton<LoggerFactory>();
+
+                services.AddSingleton<Toolbox>();
 
                 services.AddSingleton<Context>();
 
@@ -63,7 +68,9 @@ public class Program
 
                     await host.StartAsync();
 
-                    var logger = host.Services.GetRequiredService<ILogger<Program>>();
+                    host.Services.GetRequiredService<Toolbox>();
+
+                    var logger = Toolbox.LoggerFactory.CreateLogger<Program>();
 
                     try
                     {
@@ -75,7 +82,7 @@ public class Program
 
                         app.Run(app.MainWindow);
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         Debugger.Break();
                         Console.WriteLine("Uncaught exception in application. Check log file.");

@@ -6,7 +6,8 @@ namespace Data;
 
 public class Repository : IDisposable
 {
-    private readonly ILogger _logger;
+    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<Repository>();
+
     private readonly Database.Context _context;
 
     private readonly Dictionary<string, Script> _scripts;
@@ -16,10 +17,8 @@ public class Repository : IDisposable
 
     public IReadOnlyList<Model.MenuItem> MenuItems => _menuItems;
 
-    public Repository(ILogger<Repository> logger, Database.Context context)
+    public Repository(Database.Context context)
     {
-        _logger = logger;
-
         _context = context;
 
         _scripts = _context.Commands
@@ -35,7 +34,7 @@ public class Repository : IDisposable
                     }
                     catch (IOException e)
                     {
-                        _logger.LogError("{Message}", e.Message);
+                        CurrentLogger.LogError("{Message}", e.Message);
                     }
 
                     return Script.Create(Enum.Parse<Language>(c.Language), source);

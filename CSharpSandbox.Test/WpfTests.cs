@@ -1,4 +1,5 @@
-﻿using CSharpSandbox.Parsing;
+﻿using CSharpSandbox.Common;
+using CSharpSandbox.Parsing;
 using CSharpSandbox.Wpf.Gestures;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -127,6 +128,8 @@ namespace CSharpSandbox.Tests
 
                 host.Start();
 
+                host.Services.GetRequiredService<Toolbox>();
+
                 var grammar = @"
 S = /\s+/;
 modifier = /Ctrl|Alt|Shift|Windows/;
@@ -167,6 +170,10 @@ gesture = chord (S chord)*;
                         loggingBuilder.SetMinimumLevel(LogLevel.Trace);
                         loggingBuilder.AddNLog(config);
                     });
+
+                    services.AddSingleton<Toolbox>();
+
+                    services.AddSingleton<LoggerFactory>();
 
                     services.AddSingleton<IMetaParserFactory, MetaParserFactory>();
                 });

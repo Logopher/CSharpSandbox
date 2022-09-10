@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using CSharpSandbox.Common;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -10,6 +11,8 @@ namespace CSharpSandbox.Parsing;
 
 public abstract class Parser<TResult> : IParser
 {
+    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<Parser<TResult>>();
+
     private readonly IMetaParser? _metaParser;
 
     private NamedRule? _rootRule;
@@ -20,8 +23,6 @@ public abstract class Parser<TResult> : IParser
     internal readonly Dictionary<string, Pattern> _patternRules = new();
     internal readonly Dictionary<string, INamedRule> _rules = new();
     internal readonly Dictionary<string, LazyNamedRule> _lazyRules = new();
-
-    protected ILogger Logger { get; }
 
     public Type ResultType => typeof(TResult);
 
@@ -50,24 +51,15 @@ public abstract class Parser<TResult> : IParser
         }
     }
 
-    internal Parser(IMetaParser metaParser, string rootName, ILogger logger)
-    {
-        _metaParser = metaParser;
-        Logger = logger;
-        RootRuleName = rootName;
-    }
-
     public Parser(IMetaParser metaParser, string rootName)
     {
         _metaParser = metaParser;
-        Logger = ((IMetaParser_internal)_metaParser).GetLogger();
         RootRuleName = rootName;
     }
 
-    internal Parser(string rootName, ILogger logger)
+    internal Parser(string rootName)
     {
         _metaParser = this as IMetaParser ?? throw new Exception();
-        Logger = logger;
         RootRuleName = rootName;
     }
 
@@ -90,7 +82,7 @@ public abstract class Parser<TResult> : IParser
 
         if (tempTokens.TryGetCachedMatch(rule, out Token.Match? match))
         {
-            Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
+            CurrentLogger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
             tempTokens.Reset(match);
             tempTokens.Merge();
             resultNode = match.Node;
@@ -107,7 +99,7 @@ public abstract class Parser<TResult> : IParser
 
             // By the end of the switch, `node` should be non-null, unless the match failed.
 
-            Logger.LogTrace("{Prefix} {Name} MATCH? {Tokens}", logPrefix, rule.ToString(), tokens.ToString());
+            CurrentLogger.LogTrace("{Prefix} {Name} MATCH? {Tokens}", logPrefix, rule.ToString(), tokens.ToString());
             switch (rule)
             {
                 case LazyNamedRule lazy:
@@ -143,7 +135,7 @@ public abstract class Parser<TResult> : IParser
                 default:
                     throw new Exception();
             }
-            Logger.LogTrace("{Prefix} {Name} MATCH {Result} {Tokens}", logPrefix, rule.ToString(), resultNode != null ? "PASSED" : "FAILED", tokens.ToString());
+            CurrentLogger.LogTrace("{Prefix} {Name} MATCH {Result} {Tokens}", logPrefix, rule.ToString(), resultNode != null ? "PASSED" : "FAILED", tokens.ToString());
 
             if (resultNode == null)
             {
@@ -168,11 +160,11 @@ public abstract class Parser<TResult> : IParser
         return pattern;
     }
 
-    internal Pattern DefineLiteral(string name, string pattern) => DefinePattern(Pattern.FromLiteral(this, name, pattern, Logger));
+    internal Pattern DefineLiteral(string name, string pattern) => DefinePattern(Pattern.FromLiteral(this, name, pattern, CurrentLogger));
 
     public Pattern DefinePattern(string name, string pattern)
     {
-        var rule = new Pattern(this, name, pattern, Logger);
+        var rule = new Pattern(this, name, pattern, CurrentLogger);
         _patternRules.Add(name, rule);
         _rules.Add(name, rule);
         return rule;
@@ -245,9 +237,9 @@ public abstract class Parser<TResult> : IParser
     {
         IsParsing = true;
 
-        Logger.LogTrace("Parsing: {Input}", input);
+        CurrentLogger.LogTrace("Parsing: {Input}", input);
         var parseTree = Parse(RootRule, input) as ParseNode ?? throw new Exception();
-        Logger.LogTrace("Parse tree produced.");
+        CurrentLogger.LogTrace("Parse tree produced.");
 
         var result = Parse(parseTree);
 
@@ -260,7 +252,7 @@ public abstract class Parser<TResult> : IParser
     {
         if (tokens.TryGetCachedMatch(rule, out Token.Match? match))
         {
-            Logger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
+            CurrentLogger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
             tokens.Reset(match);
             return match.Node;
         }
@@ -320,7 +312,7 @@ public abstract class Parser<TResult> : IParser
                     var r = rule.Rules.Single();
                     var temp = Parse(r, tempTokens);
                     var match = temp == null;
-                    Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
+                    CurrentLogger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
                         var pnode = new ParseNode(rule);
@@ -340,7 +332,7 @@ public abstract class Parser<TResult> : IParser
                     var r = rule.Rules.Single();
                     var temp = Parse(r, tempTokens);
                     var match = temp != null;
-                    Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
+                    CurrentLogger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
                         var pnode = new ParseNode(rule, temp!);
@@ -390,11 +382,11 @@ public abstract class Parser<TResult> : IParser
             }
         };
 
-        Logger.LogTrace("RULE {Rule} MATCH? {Tokens}", rule, tokens.ToString());
+        CurrentLogger.LogTrace("RULE {Rule} MATCH? {Tokens}", rule, tokens.ToString());
 
         using var tempTokens = tokens.Fork();
         var result = directory[rule.Operator](rule, tempTokens);
-        Logger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, result.Item1 ? "PASSED" : "FAILED", tokens.ToString());
+        CurrentLogger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, result.Item1 ? "PASSED" : "FAILED", tokens.ToString());
 
         if (result.Item3)
         {

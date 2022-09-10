@@ -11,23 +11,20 @@ public interface IMetaParserFactory
 
 public class MetaParserFactory : IMetaParserFactory
 {
-    private readonly ILogger<MetaParserFactory> _logger;
-
-    public MetaParserFactory(ILogger<MetaParserFactory> logger)
-    {
-        _logger = logger;
-    }
+    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<MetaParserFactory>();
 
     public MetaParser<TParser, TResult> Create<TParser, TResult>(Func<IMetaParser, TParser> cstor)
         where TParser : Parser<TResult>
     {
-        return new MetaParser<TParser, TResult>(cstor, _logger);
+        return new MetaParser<TParser, TResult>(cstor);
     }
 }
 
 public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_internal
     where TParser : Parser<TResult>
 {
+    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<MetaParser<TParser, TResult>>();
+
     private readonly Dictionary<INamedRule, Func<IParser, IParseNode, IRule>> _directory = new();
     private readonly Func<IMetaParser, TParser> _cstor;
 
@@ -44,10 +41,10 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         LazyNamedRule Z(string name) => GetLazyRule(name);
 
         // literals
-        Pattern L(string name, string s) => DefinePattern(Pattern.FromLiteral(this, name, s, Logger));
+        Pattern L(string name, string s) => DefinePattern(Pattern.FromLiteral(this, name, s, CurrentLogger));
 
         // patterns
-        Pattern P(string name, string s) => DefinePattern(new Pattern(this, name, s, Logger));
+        Pattern P(string name, string s) => DefinePattern(new Pattern(this, name, s, CurrentLogger));
 
         // rules
         NamedRule R(string name, RuleSegment rule) => DefineRule(name, rule);
@@ -98,8 +95,8 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         R(E.Lexicon, And(Option(S), tokenSection, S, ruleSection, Option(S)));
     }
 
-    internal MetaParser(Func<IMetaParser, TParser> cstor, ILogger logger)
-        : base("lexicon", logger)
+    internal MetaParser(Func<IMetaParser, TParser> cstor)
+        : base("lexicon")
     {
         _cstor = cstor;
 
@@ -342,7 +339,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         }
     }
 
-    ILogger IMetaParser_internal.GetLogger() => Logger;
+    ILogger IMetaParser_internal.GetLogger() => CurrentLogger;
 }
 
 internal class E

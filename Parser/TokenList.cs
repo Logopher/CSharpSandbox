@@ -1,4 +1,5 @@
 ﻿using CSharpSandbox.Common;
+using Microsoft.Extensions.Logging;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -8,6 +9,7 @@ namespace CSharpSandbox.Parsing;
 
 public sealed class TokenList : IReadOnlyList<Token>, IDisposable
 {
+    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<TokenList>();
     public static TokenList Create(IEnumerable<Token> tokens) => new(tokens.ToArray());
     public static TokenList Create(params Token[] tokens) => Create(tokens);
 
@@ -84,7 +86,7 @@ public sealed class TokenList : IReadOnlyList<Token>, IDisposable
         if (!IsDisposed)
         {
             var frame = _stackFrames[_guid];
-            Debug.WriteLine($"The TokenList object create here was never disposed: {frame}");
+            CurrentLogger.LogWarning("The TokenList object created here was never disposed: {Frame}", frame);
             Debugger.Break();
         }
         _stackFrames.Remove(_guid);

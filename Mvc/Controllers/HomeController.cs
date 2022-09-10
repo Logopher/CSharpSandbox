@@ -1,16 +1,16 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using CSharpSandbox.Mvc.Models;
 using System.Diagnostics;
+using CSharpSandbox.Common;
 
 namespace CSharpSandbox.Mvc.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly ILogger<HomeController> _logger;
+        static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<HomeController>();
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController()
         {
-            _logger = logger;
         }
 
         public IActionResult Index()
