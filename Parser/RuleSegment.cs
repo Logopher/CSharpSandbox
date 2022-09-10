@@ -38,7 +38,7 @@ public class RuleSegment : IRule
         switch (Operator)
         {
             case Operator.And:
-                return string.Join(" ", Rules);
+                return $"({string.Join(" ", Rules)})";
             case Operator.Or:
                 return string.Join(" | ", Rules);
             case Operator.Not:

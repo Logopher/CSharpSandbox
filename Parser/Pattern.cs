@@ -46,7 +46,7 @@ public sealed class Pattern : INamedRule
         return false;
     }
 
-    public override string ToString() => $"/{Regexp}/";
+    public override string ToString() => Name;
 
     public string ToString(IParseNode parseNode) => (Token)parseNode;
 
