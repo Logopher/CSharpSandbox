@@ -51,7 +51,7 @@ public abstract class Parser<TResult> : IParser
         }
     }
 
-    public ParseError ParseError { get; private set; }
+    public ParseError? ParseError { get; private set; }
 
     public Parser(IMetaParser metaParser, string rootName)
     {
@@ -248,17 +248,24 @@ public abstract class Parser<TResult> : IParser
 
         CurrentLogger.LogTrace("Parsing: {Input}", input);
         var parseTree = Parse(RootRule, input) as ParseNode;
-        CurrentLogger.LogTrace("Parse tree produced: {Tree}", parseTree);
 
         if (parseTree == null)
         {
-            CurrentLogger.LogError("Failed to parse. Nearby node: {Node} Failed rule: {Rule}", ParseError.NearbyNode, ParseError.FailedRule);
+            if (ParseError == null)
+            {
+                CurrentLogger.LogError("Failed to parse. No error is available to explain why not.");
+            }
+            else
+            {
+                CurrentLogger.LogError("Failed to parse. Nearby node: {Node} Failed rule: {Rule}", ParseError.NearbyNode, ParseError.FailedRule);
+            }
 
             result = default;
             IsParsing = false;
             return false;
         }
 
+        CurrentLogger.LogTrace("Parse tree produced: {Tree}", parseTree);
         result = Parse(parseTree)!;
         IsParsing = false;
         return true;
