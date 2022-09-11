@@ -79,6 +79,7 @@ namespace CSharpSandbox.Tests
                         case "gesture":
                             return string.Join(" ", (ParseNode)pnode[0]);
                         case "chord":
+                            pnode = (ParseNode)pnode[0];
                             var modifiers = ((ParseNode)pnode[0])
                                 .Select(GetModifierName);
 
@@ -130,6 +131,8 @@ namespace CSharpSandbox.Tests
 
                 host.Services.GetRequiredService<Toolbox>();
 
+                var logger = Toolbox.LoggerFactory.CreateLogger<WpfTests>();
+
                 var grammar = @"
 S = /\s+/;
 modifier = /Ctrl|Alt|Shift|Windows/;
@@ -144,9 +147,8 @@ gesture = chord (S chord)*;
 
                 var metaParser = metaParserFactory.Create<GestureParser, InputGestureTree.Stimulus[]>(mp => new GestureParser(mp));
 
-                var parser = metaParser.Parse(grammar);
-
-                var stimuli = parser.Parse("Ctrl+A Alt+B C");
+                Assert.IsTrue(metaParser.TryParse(grammar, out var parser));
+                Assert.IsTrue(parser.TryParse("Ctrl+A Alt+B C", out var stimuli));
             }
             catch (Exception e)
             {

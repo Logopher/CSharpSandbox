@@ -58,7 +58,7 @@ public class RuleSegment : IRule
     {
         var pnode = (ParseNode)node;
 
-        if (pnode.Count != Rules.Count)
+        if (pnode.Rule != this)
         {
             throw new Exception();
         }
@@ -66,7 +66,7 @@ public class RuleSegment : IRule
         switch (Operator)
         {
             case Operator.And:
-                return $"({string.Join(Mundane.EmptyString, pnode)})";
+                return $"{string.Join(Mundane.EmptyString, pnode)}";
             case Operator.Or:
                 return pnode.Single().ToString();
             case Operator.Not:
@@ -121,30 +121,14 @@ internal class RepeatRule : RuleSegment
     {
         var pnode = (ParseNode)node;
 
-        if (pnode.Count != Rules.Count)
+        if (pnode.Rule != this)
         {
             throw new Exception();
         }
 
         var rule = Rules.Single();
-        var child = pnode.Single();
-        var baseString = rule.ToString(child);
+        var result = pnode.Select(child => rule.ToString(child));
 
-        if (Maximum == null)
-        {
-            switch (Minimum)
-            {
-                case null:
-                case 0:
-                    return $"{baseString}*";
-                case 1:
-                    return $"{baseString}+";
-            }
-        }
-
-        var min = Minimum != null ? Minimum.ToString() : Mundane.EmptyString;
-        var max = Maximum != null ? Maximum.ToString() : Mundane.EmptyString;
-
-        return $"{baseString}{{{min},{max}}}";
+        return string.Join(Mundane.EmptyString, result);
     }
 }

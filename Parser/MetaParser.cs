@@ -89,8 +89,8 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         var token = R(E.PatternRule, And(name, Option(S), assmt, Option(S), Or(literal, pattern), Option(S), stmtEnd));
         var rule = R(E.NamedRule, And(name, Option(S), assmt, Option(S), baseExpr4, Option(S), stmtEnd));
 
-        var tokenSection = R("tokenSection", And(token, Repeat0(And(S, token))));
-        var ruleSection = R("ruleSection", And(rule, Repeat0(And(S, rule))));
+        var tokenSection = R(E.TokenSection, And(token, Repeat0(And(S, token))));
+        var ruleSection = R(E.RuleSection, And(rule, Repeat0(And(S, rule))));
 
         R(E.Lexicon, And(Option(S), tokenSection, S, ruleSection, Option(S)));
     }
@@ -331,9 +331,20 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         switch (rule.Name)
         {
             case E.ParenExpr:
-                var inner = ((NamedRule)rule)
-                    .Rule.ToString((ParseNode)node);
-                return $"({inner})";
+                {
+                    var inner = ((NamedRule)rule)
+                        .Rule.ToString((ParseNode)node);
+                    return $"({inner})";
+                }
+            case E.TokenSection:
+            case E.RuleSection:
+                {
+                    var parent = ((NamedRule)rule).Rule;
+                    var first = parent.Rules[0];
+                    var rest = parent.Rules[1].Rules.Select(r => r.Rules[1]);
+                    var all = new[] { first }.Concat(rest);
+                    return string.Join(Environment.NewLine, all);
+                }
             default:
                 throw new Exception();
         }
@@ -364,4 +375,6 @@ internal class E
     public const string OrExpr = "orExpr";
     public const string AndExpr = "andExpr";
     public const string Lexicon = "lexicon";
+    public const string TokenSection = "tokenSection";
+    public const string RuleSection = "ruleSection";
 }

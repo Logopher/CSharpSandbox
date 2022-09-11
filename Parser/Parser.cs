@@ -30,7 +30,7 @@ public abstract class Parser<TResult> : IParser
 
     public string RootRuleName { get; }
 
-    public IParseNode? RecentNode => _recentNode ?? throw new Exception();
+    public IParseNode? RecentNode => _recentNode;
 
     public IRule CurrentRule => _currentRule ?? throw new Exception();
 
@@ -51,6 +51,8 @@ public abstract class Parser<TResult> : IParser
         }
     }
 
+    public ParseError ParseError { get; private set; }
+
     public Parser(IMetaParser metaParser, string rootName)
     {
         _metaParser = metaParser;
@@ -70,6 +72,13 @@ public abstract class Parser<TResult> : IParser
     {
         using var tokens = Tokenize(input);
         var parseTree = Parse(rule, tokens);
+
+        if (0 < tokens.Count)
+        {
+            CurrentLogger.LogError("Parse failed. Some tokens not consumed: {Tokens}", tokens);
+            return null;
+        }
+
         return parseTree;
     }
 
@@ -139,7 +148,7 @@ public abstract class Parser<TResult> : IParser
 
             if (resultNode == null)
             {
-
+                ParseError = new ParseError(RecentNode, CurrentRule);
             }
             else
             {
@@ -233,19 +242,26 @@ public abstract class Parser<TResult> : IParser
         return TokenList.Create(result);
     }
 
-    public TResult Parse(string input)
+    public bool TryParse(string input, [NotNullWhen(true)] out TResult? result)
     {
         IsParsing = true;
 
         CurrentLogger.LogTrace("Parsing: {Input}", input);
-        var parseTree = Parse(RootRule, input) as ParseNode ?? throw new Exception();
-        CurrentLogger.LogTrace("Parse tree produced.");
+        var parseTree = Parse(RootRule, input) as ParseNode;
+        CurrentLogger.LogTrace("Parse tree produced: {Tree}", parseTree);
 
-        var result = Parse(parseTree);
+        if (parseTree == null)
+        {
+            CurrentLogger.LogError("Failed to parse. Nearby node: {Node} Failed rule: {Rule}", ParseError.NearbyNode, ParseError.FailedRule);
 
+            result = default;
+            IsParsing = false;
+            return false;
+        }
+
+        result = Parse(parseTree)!;
         IsParsing = false;
-
-        return result;
+        return true;
     }
 
     private IParseNode? ParseRuleSegment(RuleSegment rule, TokenList tokens)
