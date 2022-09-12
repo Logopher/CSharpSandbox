@@ -77,4 +77,10 @@ public interface IParseNode
     IRule Rule { get; }
 
     string ToString();
+
+    int Start { get; }
+
+    int Length { get; }
+
+    int End { get; }
 }

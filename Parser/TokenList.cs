@@ -46,6 +46,10 @@ public sealed class TokenList : IReadOnlyList<Token>, IDisposable
 
     public int Count => _tokens.Count - Cursor;
 
+    public int InputPosition => Cursor < _tokens.Count
+        ? _tokens[Cursor].Start
+        : _tokens.Last().End;
+
     public bool IsDisposed { get; private set; }
 
     public Token this[int index] => _tokens[index + Cursor];

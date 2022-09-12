@@ -89,6 +89,8 @@ public abstract class Parser<TResult> : IParser
         IParseNode? resultNode = null;
         using var tempTokens = tokens.Fork();
 
+        var inputPosition = tokens.InputPosition;
+
         if (tempTokens.TryGetCachedMatch(rule, out Token.Match? match))
         {
             CurrentLogger.LogTrace("RULE {Name} MATCH {Result} {Tokens}", rule.ToString(), "CACHED", tokens.ToString());
@@ -131,7 +133,7 @@ public abstract class Parser<TResult> : IParser
 
                         if (temp != null)
                         {
-                            resultNode = new ParseNode(namedRule, temp);
+                            resultNode = new ParseNode(namedRule, inputPosition, temp);
                         }
                     }
                     break;
@@ -157,7 +159,15 @@ public abstract class Parser<TResult> : IParser
             }
         }
 
-        _recentNode = resultNode;
+        if (resultNode != null)
+        {
+            if (resultNode.Rule is not RuleSegment segment
+                || 0 < ((ParseNode)resultNode).Children.Count
+                || !new[] { Operator.Option, Operator.Repeat }.Contains(segment.Operator))
+            {
+                _recentNode = resultNode;
+            }
+        }
 
         return resultNode;
     }
@@ -280,6 +290,8 @@ public abstract class Parser<TResult> : IParser
             return match.Node;
         }
 
+        var inputPosition = tokens.InputPosition;
+
         Dictionary<Operator, Func<RuleSegment, TokenList, Tuple<bool, ParseNode?, bool>>> directory = new()
         {
             {
@@ -303,7 +315,7 @@ public abstract class Parser<TResult> : IParser
                         }
                     }
 
-                    return Tuple.Create(match, match ? new ParseNode(rule, nodes.ToArray()) : null, match);
+                    return Tuple.Create(match, match ? new ParseNode(rule, inputPosition, nodes.ToArray()) : null, match);
                 }
             },
 
@@ -319,7 +331,7 @@ public abstract class Parser<TResult> : IParser
                         if (temp != null)
                         {
                             tempTokens.Merge();
-                            return Tuple.Create(true, (ParseNode?)new ParseNode(rule, temp), true);
+                            return Tuple.Create(true, (ParseNode?)new ParseNode(rule, inputPosition, temp), true);
                         }
                     }
 
@@ -338,7 +350,7 @@ public abstract class Parser<TResult> : IParser
                     CurrentLogger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
-                        var pnode = new ParseNode(rule);
+                        var pnode = new ParseNode(rule, inputPosition);
                         return Tuple.Create(true, (ParseNode?)pnode, false);
                     }
 
@@ -358,13 +370,13 @@ public abstract class Parser<TResult> : IParser
                     CurrentLogger.LogTrace("RULE {Rule} MATCH {Result} {Tokens}", rule, match ? "PASSED" : "FAILED", tokens.ToString());
                     if (match)
                     {
-                        var pnode = new ParseNode(rule, temp!);
+                        var pnode = new ParseNode(rule, inputPosition, temp!);
                         tempTokens.Merge();
                         return Tuple.Create(true, (ParseNode?)pnode, true);
                     }
                     else
                     {
-                        var pnode = new ParseNode(rule);
+                        var pnode = new ParseNode(rule, inputPosition);
                         return Tuple.Create(true, (ParseNode?)pnode, true);
                     }
                 }
@@ -399,7 +411,7 @@ public abstract class Parser<TResult> : IParser
                     }
 
                     tempTokens.Merge();
-                    var pnode = new ParseNode(rule, nodes.ToArray());
+                    var pnode = new ParseNode(rule, inputPosition, nodes.ToArray());
                     return Tuple.Create(true, (ParseNode?)pnode, true);
                 }
             }

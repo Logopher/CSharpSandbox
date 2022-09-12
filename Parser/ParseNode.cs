@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics;
 
 namespace CSharpSandbox.Parsing;
 
@@ -29,6 +30,12 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
     /// </summary>
     public int Count => Children.Count;
 
+    public int Start { get; }
+
+    public int Length { get; }
+
+    public int End { get; }
+
     /// <summary>
     /// Gets a child node of this node.
     /// </summary>
@@ -56,7 +63,7 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
     /// </summary>
     /// <param name="rule">A rule specified as a portion of a larger rule.</param>
     /// <param name="nodes">A sequence of parse nodes representing text which conforms to <paramref name="rule"/>.</param>
-    internal ParseNode(RuleSegment rule, params IParseNode[] nodes)
+    internal ParseNode(RuleSegment rule, int start, params IParseNode[] nodes)
     {
         var nodeCount = nodes.Length;
 
@@ -84,8 +91,22 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
         NodeType = NodeType.Segment;
         Rule = rule;
         Children = nodes;
+        if (Children.Count == 0)
+        {
+            Start = start;
+            Length = 0;
+            End = start;
+        }
+        else
+        {
+            Start = Children.First().Start;
+            Length = Children.Sum(n => n.Length);
+            End = Children.Last().End;
 
-        foreach(var node in nodes)
+            Debug.Assert(Start == start);
+        }
+
+        foreach (var node in nodes)
         {
             node.Parent = this;
         }
@@ -97,11 +118,14 @@ public class ParseNode : IParseNode, IReadOnlyList<IParseNode>
     /// </summary>
     /// <param name="rule">A rule specified, and named, in a grammar.</param>
     /// <param name="node">A parse node representing text which conforms to <paramref name="rule"/>.</param>
-    internal ParseNode(NamedRule rule, IParseNode node)
+    internal ParseNode(NamedRule rule, int start, IParseNode node)
     {
         NodeType = NodeType.NamedRule;
         Rule = rule;
         Children = new[] { node };
+        Start = node.Start;
+        Length = node.Length;
+        End = node.End;
 
         node.Parent = this;
     }

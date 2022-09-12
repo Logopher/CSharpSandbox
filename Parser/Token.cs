@@ -11,6 +11,9 @@ public sealed class Token : IParseNode
     public ParseNode? Parent { get; set; }
 
     public string Lexeme { get; }
+    public int Start { get; }
+    public int Length => Lexeme.Length;
+    public int End => Start + Length;
 
     private readonly Dictionary<IRule, Match> _matchingRules = new();
 
@@ -18,10 +21,11 @@ public sealed class Token : IParseNode
 
     public string this[Range range] => ToString()[range];
 
-    internal Token(Pattern pattern, string lexeme)
+    internal Token(Pattern pattern, int start, string lexeme)
     {
         Rule = pattern;
         Lexeme = lexeme;
+        Start = start;
     }
 
     internal bool TryGetCachedMatch(IRule rule, [NotNullWhen(true)] out Match? match) => _matchingRules.TryGetValue(rule, out match);

@@ -39,7 +39,7 @@ public sealed class Pattern : INamedRule
         {
             var text = match!.Groups[1].Value;
             input.Remove(0, match.Length);
-            token = new(this, text);
+            token = new(this, match.Index, text);
             return true;
         }
 
