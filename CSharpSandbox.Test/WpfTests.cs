@@ -5,9 +5,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NLog;
 using NLog.Extensions.Logging;
 using System.Linq;
 using System.Windows.Input;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace CSharpSandbox.Tests
 {
@@ -123,17 +126,13 @@ namespace CSharpSandbox.Tests
         [TestMethod]
         public void ParseInputGestures()
         {
-            try
-            {
-                using var host = CreateHostBuilder().Build();
+            using var host = GetHost();
 
-                host.Start();
+            // https://github.com/NLog/NLog/wiki/Filtering-log-messages#semi-dynamic-routing-rules
+            LogManager.Configuration.Variables["consoleLevel"] = nameof(NLog.LogLevel.Trace);
+            LogManager.ReconfigExistingLoggers();
 
-                host.Services.GetRequiredService<Toolbox>();
-
-                var logger = Toolbox.LoggerFactory.CreateLogger<WpfTests>();
-
-                var grammar = @"
+            var grammar = @"
 S = /\s+/;
 modifier = /Ctrl|Alt|Shift|Windows/;
 plus = ""+"";
@@ -143,17 +142,23 @@ chord = (modifier plus)* key;
 gesture = chord (S chord)*;
 ";
 
-                var metaParserFactory = host.Services.GetRequiredService<IMetaParserFactory>();
+            var metaParserFactory = host.Services.GetRequiredService<IMetaParserFactory>();
 
-                var metaParser = metaParserFactory.Create<GestureParser, InputGestureTree.Stimulus[]>(mp => new GestureParser(mp));
+            var metaParser = metaParserFactory.Create<GestureParser, InputGestureTree.Stimulus[]>(mp => new GestureParser(mp));
 
-                Assert.IsTrue(metaParser.TryParse(grammar, out var parser));
-                Assert.IsTrue(parser.TryParse("Ctrl+A Alt+B C", out var stimuli));
-            }
-            catch (Exception e)
-            {
-                Assert.Fail(e.Message);
-            }
+            Assert.IsTrue(metaParser.TryParse(grammar, out var parser));
+            Assert.IsTrue(parser.TryParse("Ctrl+A Alt+B C", out var stimuli));
+        }
+
+        private IHost GetHost()
+        {
+            var host = CreateHostBuilder().Build();
+
+            host.Start();
+
+            host.Services.GetRequiredService<Toolbox>();
+
+            return host;
         }
 
         private IHostBuilder CreateHostBuilder()

@@ -150,7 +150,7 @@ public abstract class Parser<TResult> : IParser
 
             if (resultNode == null)
             {
-                ParseError = new ParseError(RecentNode, CurrentRule);
+                ParseError = new ParseError(RecentNode, inputPosition, CurrentRule);
             }
             else
             {
