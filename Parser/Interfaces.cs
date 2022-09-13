@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using NLog;
 
 namespace CSharpSandbox.Parsing;
 
@@ -34,7 +34,7 @@ public interface IMetaParser : IParser
 
 internal interface IMetaParser_internal : IMetaParser
 {
-    ILogger GetLogger();
+    Logger GetLogger();
 }
 
 public enum Operator

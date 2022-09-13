@@ -1,5 +1,5 @@
 ﻿using CSharpSandbox.Common;
-using Microsoft.Extensions.Logging;
+using NLog;
 
 namespace CSharpSandbox.Parsing;
 
@@ -11,7 +11,7 @@ public interface IMetaParserFactory
 
 public class MetaParserFactory : IMetaParserFactory
 {
-    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<MetaParserFactory>();
+    static readonly Logger CurrentLogger = LogManager.GetCurrentClassLogger();
 
     public MetaParser<TParser, TResult> Create<TParser, TResult>(Func<IMetaParser, TParser> cstor)
         where TParser : Parser<TResult>
@@ -23,7 +23,7 @@ public class MetaParserFactory : IMetaParserFactory
 public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_internal
     where TParser : Parser<TResult>
 {
-    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<MetaParser<TParser, TResult>>();
+    static readonly Logger CurrentLogger = LogManager.GetCurrentClassLogger();
 
     private readonly Dictionary<INamedRule, Func<IParser, IParseNode, IRule>> _directory = new();
     private readonly Func<IMetaParser, TParser> _cstor;
@@ -41,10 +41,10 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         LazyNamedRule Z(string name) => GetLazyRule(name);
 
         // literals
-        Pattern L(string name, string s) => DefinePattern(Pattern.FromLiteral(this, name, s, CurrentLogger));
+        Pattern L(string name, string s) => DefinePattern(Pattern.FromLiteral(this, name, s));
 
         // patterns
-        Pattern P(string name, string s) => DefinePattern(new Pattern(this, name, s, CurrentLogger));
+        Pattern P(string name, string s) => DefinePattern(new Pattern(this, name, s));
 
         // rules
         NamedRule R(string name, RuleSegment rule) => DefineRule(name, rule);
@@ -350,7 +350,7 @@ public class MetaParser<TParser, TResult> : Parser<TParser>, IMetaParser_interna
         }
     }
 
-    ILogger IMetaParser_internal.GetLogger() => CurrentLogger;
+    Logger IMetaParser_internal.GetLogger() => CurrentLogger;
 }
 
 internal class E

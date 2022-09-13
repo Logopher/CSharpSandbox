@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -41,7 +40,7 @@ namespace CSharpSandbox.Wpf
 
         public void Self_Exit(object sender, ExitEventArgs e)
         {
-
+            
         }
 
         void Self_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

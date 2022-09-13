@@ -12,7 +12,7 @@
     <Authors>$(SolutionName).$(AssemblyName)</Authors>
     <PackageId>$(SolutionName).$(AssemblyName)</PackageId>
     <RootNamespace>$(SolutionName).$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
-    <Version>1.0.0.502</Version>
+    <Version>1.0.0.535</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,8 +23,8 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
-    <PackageReference Include="NLog" Version="5.0.2" />
-    <PackageReference Include="NLog.Extensions.Logging" Version="5.0.2" />
+    <PackageReference Include="NLog" Version="5.0.4" />
+    <PackageReference Include="NLog.Extensions.Logging" Version="5.0.4" />
   </ItemGroup>
 
   <ItemGroup>

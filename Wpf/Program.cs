@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using NLog.Extensions.Logging;
 using System;
 using CSharpSandbox.Wpf.View;
 using System.IO;
@@ -13,6 +11,7 @@ using Data.Database;
 using Data;
 using System.Diagnostics;
 using CSharpSandbox.Common;
+using NLog;
 
 namespace CSharpSandbox.Wpf;
 
@@ -30,13 +29,6 @@ public class Program
             {
                 services.AddSingleton<App>();
                 services.AddTransient<IDaq, Daq>();
-                services.AddLogging(loggingBuilder =>
-                {
-                    loggingBuilder.SetMinimumLevel(LogLevel.Trace);
-                    loggingBuilder.AddNLog(config);
-                });
-
-                services.AddSingleton<LoggerFactory>();
 
                 services.AddSingleton<Toolbox>();
 
@@ -70,7 +62,7 @@ public class Program
 
                     host.Services.GetRequiredService<Toolbox>();
 
-                    var logger = Toolbox.LoggerFactory.CreateLogger<Program>();
+                    var logger = LogManager.GetCurrentClassLogger();
 
                     try
                     {
@@ -86,7 +78,7 @@ public class Program
                     {
                         Debugger.Break();
                         Console.WriteLine("Uncaught exception in application. Check log file.");
-                        logger.LogError(e, "{Message}", e.Message);
+                        logger.Error(e, "{Message}", e.Message);
                     }
                 }
                 catch (Exception e)

@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,15 +23,9 @@ namespace CSharpSandbox.Common
             }
         }
 
-        public static LoggerFactory LoggerFactory => Instance._loggerFactory;
-
-        LoggerFactory _loggerFactory;
-
-        public Toolbox(LoggerFactory loggerFactory)
+        public Toolbox()
         {
             Instance = this;
-
-            _loggerFactory = loggerFactory;
         }
     }
 }

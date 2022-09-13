@@ -1,6 +1,7 @@
 ﻿using CSharpSandbox.Common;
-using Microsoft.Extensions.Logging;
+using NLog;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
@@ -9,11 +10,11 @@ namespace CSharpSandbox.Parsing;
 
 public sealed class TokenList : IReadOnlyList<Token>, IDisposable
 {
-    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<TokenList>();
+    static readonly Logger CurrentLogger = LogManager.GetCurrentClassLogger();
     public static TokenList Create(IEnumerable<Token> tokens) => new(tokens.ToArray());
     public static TokenList Create(params Token[] tokens) => Create(tokens);
 
-    static readonly Dictionary<Guid, StackFrame> _stackFrames = new();
+    static readonly ConcurrentDictionary<Guid, StackFrame> _stackFrames = new();
 
     readonly Guid _guid;
 
@@ -90,10 +91,14 @@ public sealed class TokenList : IReadOnlyList<Token>, IDisposable
         if (!IsDisposed)
         {
             var frame = _stackFrames[_guid];
-            CurrentLogger.LogWarning("The TokenList object created here was never disposed: {Frame}", frame);
+            CurrentLogger.Warn("The TokenList object created here was never disposed: {Frame}", frame);
             Debugger.Break();
         }
-        _stackFrames.Remove(_guid);
+
+        if (!_stackFrames.Remove(_guid, out var _))
+        {
+            Debugger.Break();
+        }
     }
 
     void TrackUsage()
@@ -110,7 +115,10 @@ public sealed class TokenList : IReadOnlyList<Token>, IDisposable
                 return Path.GetFileName(filepath) != $"{GetType().Name}.cs";
             });
 
-        _stackFrames.Add(_guid, frame);
+        if (!_stackFrames.TryAdd(_guid, frame))
+        {
+            Debugger.Break();
+        }
     }
 
     public override string ToString() => string.Join(Mundane.EmptyString, this);

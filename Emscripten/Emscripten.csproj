@@ -15,9 +15,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.DotNet.ILCompiler.LLVM" Version="7.0.0-*" />
-    <PackageReference Include="NLog" Version="5.0.2" />
-    <PackageReference Include="NLog.Extensions.Logging" Version="5.0.2" />
-    <PackageReference Include="NLog.Schema" Version="5.0.2" />
+    <PackageReference Include="NLog" Version="5.0.4" />
+    <PackageReference Include="NLog.Extensions.Logging" Version="5.0.4" />
+    <PackageReference Include="NLog.Schema" Version="5.0.4" />
     <PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler.LLVM" Version="7.0.0-*" />
   </ItemGroup>
 

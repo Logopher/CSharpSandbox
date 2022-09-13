@@ -4,13 +4,10 @@ using CSharpSandbox.Wpf.Gestures;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using NLog;
 using NLog.Extensions.Logging;
 using System.Linq;
 using System.Windows.Input;
-
-using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace CSharpSandbox.Tests
 {
@@ -128,10 +125,6 @@ namespace CSharpSandbox.Tests
         {
             using var host = GetHost();
 
-            // https://github.com/NLog/NLog/wiki/Filtering-log-messages#semi-dynamic-routing-rules
-            LogManager.Configuration.Variables["consoleLevel"] = nameof(NLog.LogLevel.Trace);
-            LogManager.ReconfigExistingLoggers();
-
             var grammar = @"
 S = /\s+/;
 modifier = /Ctrl|Alt|Shift|Windows/;
@@ -163,24 +156,59 @@ gesture = chord (S chord)*;
 
         private IHostBuilder CreateHostBuilder()
         {
-
+            /*
             var config = new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory()) //From NuGet Package Microsoft.Extensions.Configuration.Json
                     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                     .Build();
+            */
 
             return Host.CreateDefaultBuilder()
-                .ConfigureServices((_, services) =>
+                .ConfigureServices((builderContext, services) =>
                 {
-                    services.AddLogging(loggingBuilder =>
+                    var env = builderContext.HostingEnvironment;
+
+                    var config = new ConfigurationBuilder()
+                        .SetBasePath(Directory.GetCurrentDirectory())
+                        .AddJsonFile("appSettings.json", optional: false, reloadOnChange: true)
+                        .AddJsonFile($"appSettings.{env.EnvironmentName}.json", optional: true)
+                        .AddEnvironmentVariables()
+                        .Build();
+
+                    LogManager
+                        .Setup()
+                        .LoadConfigurationFromSection(config.GetSection("NLog"));
+
+                    /*
+                    var config = new ConfigurationBuilder()
+                        .SetBasePath(Directory.GetCurrentDirectory())
+                        .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                        .Build();
+                    //*/
+                    //LogManager.Configuration = new NLogLoggingConfiguration(config.GetSection("NLog"));
+
+                    /*
+                    var loggerOptions = new NLogProviderOptions()
                     {
-                        loggingBuilder.SetMinimumLevel(LogLevel.Trace);
-                        loggingBuilder.AddNLog(config);
-                    });
+                        IgnoreEmptyEventId = true,
+                        CaptureMessageTemplates = true,
+                        CaptureMessageProperties = true,
+                        ParseMessageTemplates = true,
+                        IncludeScopes = true,
+                        ShutdownOnDispose = true,
+                    };
+
+                    services.AddSingleton<ILoggerProvider>(new NLogLoggerProvider(loggerOptions));
+                    */
+
+                    // https://github.com/NLog/NLog/wiki/Filtering-log-messages#semi-dynamic-routing-rules
+                    // https://stackoverflow.com/questions/69120464/how-do-i-correctly-add-nlog-to-a-net-5-console-app/69123564#69123564
+                    // https://stackoverflow.com/questions/47058036/nlog-not-logging-on-all-levels/47074246#47074246
+                    // https://github.com/NLog/NLog.Extensions.Logging/wiki/NLog-configuration-with-appsettings.json
+                    //LogManager.Configuration.Variables["consoleLevel"] = nameof(NLog.LogLevel.Trace);
+                    //LogManager.ReconfigExistingLoggers();
 
                     services.AddSingleton<Toolbox>();
-
-                    services.AddSingleton<LoggerFactory>();
 
                     services.AddSingleton<IMetaParserFactory, MetaParserFactory>();
                 });

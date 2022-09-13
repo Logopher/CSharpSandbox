@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using NLog;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -8,7 +8,7 @@ namespace CSharpSandbox.Parsing;
 public sealed class Pattern : INamedRule
 {
     private readonly IParser _parser;
-    private readonly ILogger _logger;
+    static readonly Logger CurrentLogger = LogManager.GetCurrentClassLogger();
 
     public string Name { get; }
 
@@ -16,12 +16,11 @@ public sealed class Pattern : INamedRule
 
     public Regex Regexp { get; }
 
-    internal static Pattern FromLiteral(IParser parser, string name, string s, ILogger logger) => new(parser, name, Regex.Escape(s), logger);
+    internal static Pattern FromLiteral(IParser parser, string name, string s) => new(parser, name, Regex.Escape(s));
 
-    internal Pattern(IParser parser, string name, string regexp, ILogger logger)
+    internal Pattern(IParser parser, string name, string regexp)
     {
         _parser = parser;
-        _logger = logger;
 
         Name = name;
         Regexp = new Regex($@"^({regexp})");
@@ -32,9 +31,9 @@ public sealed class Pattern : INamedRule
         token = null;
 
         var match = Regexp.Match(input.ToString());
-        _logger.LogTrace("PATTERN {Regex} MATCH? {Input}", Regexp, input);
+        CurrentLogger.Trace("PATTERN {Regex} MATCH? {Input}", Regexp, input);
         var result = match?.Success ?? false;
-        _logger.LogTrace("PATTERN {Regex} MATCH {Result} {Input}", Regexp, result ? "PASSED" : "FAILED", input);
+        CurrentLogger.Trace("PATTERN {Regex} MATCH {Result} {Input}", Regexp, result ? "PASSED" : "FAILED", input);
         if (result)
         {
             var text = match!.Groups[1].Value;

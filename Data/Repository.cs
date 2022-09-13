@@ -1,12 +1,12 @@
 ﻿using CSharpSandbox.Common;
 using CSharpSandbox.Shells;
-using Microsoft.Extensions.Logging;
+using NLog;
 
 namespace Data;
 
 public class Repository : IDisposable
 {
-    static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<Repository>();
+    static readonly Logger CurrentLogger = LogManager.GetCurrentClassLogger();
 
     private readonly Database.Context _context;
 
@@ -34,7 +34,7 @@ public class Repository : IDisposable
                     }
                     catch (IOException e)
                     {
-                        CurrentLogger.LogError("{Message}", e.Message);
+                        CurrentLogger.Error("{Message}", e.Message);
                     }
 
                     return Script.Create(Enum.Parse<Language>(c.Language), source);

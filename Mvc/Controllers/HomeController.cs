@@ -2,12 +2,13 @@
 using CSharpSandbox.Mvc.Models;
 using System.Diagnostics;
 using CSharpSandbox.Common;
+using NLog;
 
 namespace CSharpSandbox.Mvc.Controllers
 {
     public class HomeController : Controller
     {
-        static readonly ILogger CurrentLogger = Toolbox.LoggerFactory.CreateLogger<HomeController>();
+        static readonly Logger CurrentLogger = LogManager.GetCurrentClassLogger();
 
         public HomeController()
         {
